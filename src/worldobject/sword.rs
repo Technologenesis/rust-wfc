@@ -1,7 +1,9 @@
 use crate::world;
 use crate::materials;
 use crate::worldobject;
-use crate::components::inventory::{Inventory, InventoryItem};
+use crate::worldobject::components::inventory::{
+    Inventory,
+    item::InventoryItem};
 use crate::quantities::distance;
 use crate::quantities::mass;
 use crate::quantities::force;
@@ -56,16 +58,16 @@ impl worldobject::TypedWorldObject for Sword {
         Ok(worldobject::UpdateFn::no_op())
     }
 
-    fn dummy(&self) -> Box<dyn worldobject::WorldObject> {
-        Box::new(Sword { mass: self.mass.clone(), reach: self.reach.clone(), material: self.material.clone() })
+    fn dummy(&self) -> Self {
+        Sword { mass: self.mass.clone(), reach: self.reach.clone(), material: self.material.clone() }
     }
 
     fn examine(&self) -> String {
         format!("a sword forged from {} with a reach of {} meters", self.material, (&self.reach / &distance::meters(1.0)).cancel())
     }
 
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (worldobject::Error, Box<dyn worldobject::WorldObject>)> {
-        Ok(self)
+    fn collect(self: Box<Self>) -> Result<Self, (worldobject::Error, Box<Self>)> {
+        Ok(*self)
     }
 
     fn interact(&mut self) -> Result<String, worldobject::Error> {

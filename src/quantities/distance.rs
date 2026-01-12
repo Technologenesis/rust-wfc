@@ -8,6 +8,14 @@ use crate::quantities;
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Distance(f64);
 
+impl TryFrom<serde_json::Value> for Distance {
+    type Error = &'static str;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        Ok(Distance(value.as_f64().ok_or("failed to parse distance")?))
+    }
+}
+
 impl quantities::QuantityTrait for Distance {
     fn add(&self, other: &Self) -> quantities::Quantity<Self> {
         quantities::Quantity(Distance(self.0 + other.0))

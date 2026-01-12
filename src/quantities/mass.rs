@@ -10,6 +10,17 @@ pub struct Mass {
     pub grams: f64
 }
 
+impl TryFrom<serde_json::Value> for Mass {
+    type Error = String;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        Ok(Mass {
+            grams: value.get("grams").ok_or(String::from("grams not found"))
+                .and_then(|v| v.as_f64().ok_or(String::from("failed to parse grams")))?
+        })
+    }
+}
+
 pub fn grams(n: f64) -> quantities::Quantity<Mass> {
     quantities::Quantity(Mass { grams: n })
 }

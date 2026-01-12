@@ -2,20 +2,16 @@
 
 mod worldobject;
 mod world;
-mod human;
-mod rat;
-mod sword;
 mod materials;
-mod components;
 mod quantities;
 mod lobby;
 
 use std::io;
 
-use human::controllers::terminal;
-use human::body::arm;
-use human::body::arm::hand;
-use components::inventory;
+use worldobject::human::controllers::terminal;
+use worldobject::human::body::arm;
+use worldobject::human::body::arm::hand;
+use worldobject::components::inventory;
 
 use quantities::distance;
 use quantities::force;
@@ -23,7 +19,7 @@ use quantities::duration;
 use quantities::mass;
 use quantities::speed;
 
-use crate::human::gender;
+use crate::worldobject::human::gender;
 use crate::quantities::direction;
 
 #[tokio::main]
@@ -38,7 +34,7 @@ async fn main() {
     io::stdin().read_line(&mut choice).unwrap();
     choice = choice.trim().to_lowercase();
     if choice == "host" {
-        let characters = start_lobby(human::Human::new(character, human::controllers::terminal::TerminalHumanController{})).await.unwrap();
+        let characters = start_lobby(worldobject::human::Human::new(character, worldobject::human::controllers::terminal::TerminalHumanController{})).await.unwrap();
         println!("Characters: {:?}", characters.iter().map(|c| format!("{} ({})", c.name(), c.examine())).collect::<Vec<String>>());
     } else if choice == "join" {
         println!("Enter the IP address of the lobby you want to join:");
@@ -51,7 +47,7 @@ async fn main() {
     }
 }
 
-fn create_character() -> human::UnsouledHuman {
+fn create_character() -> worldobject::human::UnsouledHuman {
     println!("What is your name?");
     let mut name = String::new();
 
@@ -89,7 +85,7 @@ fn create_character() -> human::UnsouledHuman {
     let gender = gender_res.unwrap();
     println!("After some effort, you bring forth clear memories of being a {}.", gender.noun());
 
-    human::UnsouledHuman::new(
+    worldobject::human::UnsouledHuman::new(
         name,
         gender,
         speed::meters_per_second(5.0),
@@ -97,13 +93,18 @@ fn create_character() -> human::UnsouledHuman {
             mass::kilograms(10.0),
             distance::meters(1.0),
             force::newtons(1000.0),
-            Some(hand::hand(None::<Box<dyn inventory::InventoryItem>>)),
+            Some(hand::hand(
+                mass::kilograms(1.0),
+                None::<Box<dyn worldobject::components::inventory::item::InventoryItem>>)),
         )),
         Some(arm::arm(
             mass::kilograms(10.0),
             distance::meters(1.0),
             force::newtons(1000.0),
-            Some(hand::hand(None::<Box<dyn inventory::InventoryItem>>)),
+            Some(hand::hand(
+                mass::kilograms(1.0),
+                None::<Box<dyn worldobject::components::inventory::item::InventoryItem>>
+            )),
         )),
         direction::DirectionHorizontal::Right,
         mass::kilograms(0.0),
@@ -111,7 +112,7 @@ fn create_character() -> human::UnsouledHuman {
     )
 }
 
-async fn start_lobby<'a>(character: human::Human) -> Result<Vec<Box<dyn worldobject::WorldObject>>, ()> {
+async fn start_lobby<'a>(character: worldobject::human::Human) -> Result<Vec<Box<dyn worldobject::WorldObject>>, ()> {
     let mut lobby = lobby::Lobby::new();
 
     lobby.add_character(character)

@@ -3,18 +3,12 @@ pub mod client;
 use std::sync::Mutex;
 
 use tokio::net::TcpListener;
-use tokio::sync::mpsc as mpsc_tokio;
-use std::sync::mpsc;
 use tokio::net::TcpStream;
 use std::net::SocketAddr;
-use tokio::runtime::Handle;
-use tokio::task::JoinHandle;
 use tokio_util::io::SyncIoBridge;
 use std::io;
 
-use crate::human;
-use crate::quantities::distance;
-use crate::world;
+use crate::worldobject::human;
 use crate::worldobject;
 
 pub struct Lobby {
@@ -52,6 +46,7 @@ impl Lobby {
             tokio::select! {
                 stream_and_socket_addr_result = listener.accept() => match stream_and_socket_addr_result {
                     Ok((stream, socket_addr)) => {
+                        println!("Received connection from {}", socket_addr);
                         self.register_connection_with_lobby(stream, socket_addr).await;
                     },
                     Err(_) => ()
@@ -67,22 +62,22 @@ impl Lobby {
     }
 
     async fn register_connection_with_lobby(&mut self, mut stream: TcpStream, _:  SocketAddr) {
+        println!("Reading character information from connection...");
         let mut json_stream = serde_json::Deserializer::from_reader(SyncIoBridge::new(&mut stream)).into_iter::<serde_json::Value>();
 
         let next_json = tokio::task::block_in_place(|| {
             json_stream.next()
-        }).unwrap();
+        }).unwrap().unwrap();
 
-        match next_json {
-            Ok(json) => {
-                if let Ok(unsouled) = serde_json::from_value(json) {
-                    // TODO: Create proper network controller
-                    self.add_character(human::Human::new(unsouled, human::controllers::network::NetworkHumanController{stream}));
-                }
+        //println!("Received character information: {}", (&next_json).to_string());
+
+        if let Ok(unsouled) = human::UnsouledHuman::try_from(&next_json) {
+            // TODO: Create proper network controller
+            if let Err(err) = self.add_character(human::Human::new(unsouled, human::controllers::network::NetworkHumanController::new(stream))) {
+                println!("Error adding character: {}", err);
             }
-            Err(e) => {
-                println!("Error parsing JSON: {}", e);
-            }
+        } else if let Err(err) = human::UnsouledHuman::try_from(&next_json) {
+            println!("Error parsing character information: {}", err);
         }
     }
 }

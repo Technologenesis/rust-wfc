@@ -1,6 +1,6 @@
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
-use crate::human;
+use crate::worldobject::human;
 
 pub struct LobbyClient {}
 
@@ -16,6 +16,9 @@ impl LobbyClient {
         let mut stream = TcpStream::connect((addr, 8080)).await?;
 
         let json = serde_json::to_vec(&character)?;
+
+        //println!("Sending character to lobby: {}", String::from_utf8_lossy(&json));
+
         stream.write_all(&json).await?;
 
         stream.flush().await?;

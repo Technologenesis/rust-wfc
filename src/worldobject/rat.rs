@@ -3,7 +3,13 @@ use crate::quantities;
 use crate::quantities::mass;
 use crate::quantities::speed;
 use crate::quantities::force;
-use crate::components::inventory::{Inventory, InventoryItem};
+use crate::worldobject::components::inventory::{
+    Inventory,
+    item::{
+        InventoryItem,
+        none::NoInventoryItem
+    }
+};
 use crate::world;
 
 pub struct Rat {
@@ -29,6 +35,12 @@ impl Rat {
 
 impl std::error::Error for RatInventoryError {}
 
+impl InventoryItem for Rat {
+    fn dummy(&self) -> Box<dyn InventoryItem> {
+        Box::new(<Rat as worldobject::TypedWorldObject>::dummy(self))
+    }
+}
+
 impl worldobject::TypedWorldObject for Rat {
     type Dummy = Self;
     type CollectInventoryItem = Self;
@@ -49,8 +61,8 @@ impl worldobject::TypedWorldObject for Rat {
         }
     }
 
-    fn dummy(&self) -> Box<dyn worldobject::WorldObject> {
-        Box::new(Rat::new(self.mass.clone(), self.speed.clone()))
+    fn dummy(&self) -> Self {
+        Rat::new(self.mass.clone(), self.speed.clone())
     }
 
     fn definite_description(&self) -> String {
@@ -65,8 +77,8 @@ impl worldobject::TypedWorldObject for Rat {
         String::from("it")
     }
 
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (worldobject::Error, Box<dyn worldobject::WorldObject>)> {
-        Ok(self)
+    fn collect(self: Box<Self>) -> Result<Self, (worldobject::Error, Box<Self>)> {
+        Ok(*self)
     }
 
     fn interact(&mut self) -> Result<String, worldobject::Error> {
@@ -96,11 +108,5 @@ impl worldobject::TypedWorldObject for Rat {
 
     fn send_message(&mut self, message: String) -> Result<(), worldobject::Error> {
         Ok(())
-    }
-}
-
-impl InventoryItem for Rat {
-    fn dummy(&self) -> Box<dyn InventoryItem> {
-        Box::new(<Rat as worldobject::TypedWorldObject>::dummy(self))
     }
 }

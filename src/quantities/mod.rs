@@ -21,7 +21,7 @@ use std::ops;
 use std::cmp;
 use std::fmt;
 
-pub trait QuantityTrait: Clone + PartialEq {
+pub trait QuantityTrait: Clone + PartialEq + TryFrom<serde_json::Value> {
     fn add(&self, other: &Self) -> Quantity<Self>;
     fn neg(&self) -> Quantity<Self>;
     fn div(&self, other: &Self) -> Quantity<Unitless>;
@@ -31,6 +31,14 @@ pub trait QuantityTrait: Clone + PartialEq {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Unitless (pub f64);
+
+impl TryFrom<serde_json::Value> for Unitless {
+    type Error = &'static str;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        Ok(Unitless(value.as_f64().ok_or("failed to parse unitless")?))
+    }
+}
 
 impl QuantityTrait for Unitless {
     fn add(&self, other: &Self) -> Quantity<Self> {
@@ -67,7 +75,18 @@ impl fmt::Display for Unitless {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
-pub struct Quantity<T: QuantityTrait + ?Sized>(pub T);
+pub struct Quantity<T: QuantityTrait + ?Sized + TryFrom<serde_json::Value>>(pub T);
+
+impl<T: QuantityTrait + ?Sized + TryFrom<serde_json::Value>> TryFrom<serde_json::Value> for Quantity<T>
+where T::Error: fmt::Display
+{
+    type Error = String;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        T::try_from(value).map_err(|err| format!("failed to parse quantity: {}", err))
+            .map(|t| Quantity(t))
+    }
+}
 
 impl<T: QuantityTrait + Clone> Clone for Quantity<T> {
     fn clone(&self) -> Self {
@@ -123,7 +142,9 @@ impl<T: QuantityTrait> ops::Neg for Quantity<T> {
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<&Quantity<Q2>> for &Quantity<Q1> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<&Quantity<Q2>> for &Quantity<Q1>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     type Output = Quantity<product::Product<Q1, Q2>>;
 
     fn mul(self, other: &Quantity<Q2>) -> Quantity<product::Product<Q1, Q2>> {
@@ -131,7 +152,9 @@ impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<&Quantity<Q2>> for &Quantity
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<Quantity<Q2>> for Quantity<Q1> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<Quantity<Q2>> for Quantity<Q1>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     type Output = Quantity<product::Product<Q1, Q2>>;
 
     fn mul(self, other: Quantity<Q2>) -> Quantity<product::Product<Q1, Q2>> {
@@ -139,7 +162,9 @@ impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Mul<Quantity<Q2>> for Quantity<Q
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Div<Quantity<Q2>> for Quantity<Q1> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Div<Quantity<Q2>> for Quantity<Q1>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     type Output = Quantity<product::Product<Q1, per::Per<Q2>>>;
 
     fn div(self, other: Quantity<Q2>) -> Quantity<product::Product<Q1, per::Per<Q2>>> {
@@ -147,7 +172,9 @@ impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Div<Quantity<Q2>> for Quantity<Q
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Div<&Quantity<Q2>> for &Quantity<Q1> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> ops::Div<&Quantity<Q2>> for &Quantity<Q1>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     type Output = Quantity<product::Product<Q1, per::Per<Q2>>>;
 
     fn div(self, other: &Quantity<Q2>) -> Quantity<product::Product<Q1, per::Per<Q2>>> {
@@ -161,13 +188,17 @@ impl<Q: QuantityTrait> cmp::PartialOrd<Quantity<Q>> for Quantity<Q> {
     }
 }
 
-impl<Q: QuantityTrait> Quantity<product::Product<Q, per::Per<Q>>> {
+impl<Q: QuantityTrait> Quantity<product::Product<Q, per::Per<Q>>>
+where Q::Error: fmt::Display
+{
     pub fn cancel(self) -> Quantity<Unitless> {
         self.0.a.0.div(&self.0.b.0.denom.0)
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> Quantity<product::Product<Q1, product::Product<Q2, per::Per<Q2>>>> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> Quantity<product::Product<Q1, product::Product<Q2, per::Per<Q2>>>>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     pub fn cancel(self) -> Quantity<Q1> {
         let uncancelled = self.0.a;
 
@@ -179,26 +210,34 @@ impl<Q1: QuantityTrait, Q2: QuantityTrait> Quantity<product::Product<Q1, product
     }
 }
 
-impl<Q: QuantityTrait> Quantity<product::Product<Q, Unitless>> {
+impl<Q: QuantityTrait> Quantity<product::Product<Q, Unitless>>
+where Q::Error: fmt::Display
+{
     pub fn cancel(self) -> Quantity<Q> {
         self.0.a.0.mul(&self.0.b)
     }
 }
 
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait, Q3: QuantityTrait> Quantity<product::Product<Q1, product::Product<Q2, Q3>>> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait, Q3: QuantityTrait> Quantity<product::Product<Q1, product::Product<Q2, Q3>>>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display, Q3::Error: fmt::Display
+{
     pub fn associate_left(&self) -> Quantity<product::Product<product::Product<Q1, Q2>, Q3>> {
         product::product(product::product(self.0.a.clone(), self.0.b.0.a.clone()), self.0.b.0.b.clone())
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait, Q3: QuantityTrait> Quantity<product::Product<product::Product<Q1, Q2>, Q3>> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait, Q3: QuantityTrait> Quantity<product::Product<product::Product<Q1, Q2>, Q3>>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display, Q3::Error: fmt::Display
+{
     pub fn associate_right(&self) -> Quantity<product::Product<Q1, product::Product<Q2, Q3>>> {
         product::product(self.0.a.0.a.clone(), product::product(self.0.a.0.b.clone(), self.0.b.clone()))
     }
 }
 
-impl<Q1: QuantityTrait, Q2: QuantityTrait> Quantity<product::Product<Q1, Q2>> {
+impl<Q1: QuantityTrait, Q2: QuantityTrait> Quantity<product::Product<Q1, Q2>>
+where Q1::Error: fmt::Display, Q2::Error: fmt::Display
+{
     pub fn commute(&self) -> Quantity<product::Product<Q2, Q1>> {
         product::product(self.0.b.clone(), self.0.a.clone())
     }

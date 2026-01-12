@@ -5,7 +5,7 @@ use std::error;
 
 use crate::quantities;
 use crate::worldobject;
-use crate::components::inventory::InventoryItem;
+use crate::worldobject::components::inventory::item::InventoryItem;
 use crate::quantities::distance;
 use crate::quantities::direction;
 

@@ -1,4 +1,4 @@
-use crate::human::{
+use crate::worldobject::human::{
     controllers,
     actions,
 };

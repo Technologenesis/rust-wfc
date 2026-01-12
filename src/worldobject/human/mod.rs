@@ -11,12 +11,18 @@ use serde::Deserialize;
 use std::error;
 use std::string::String;
 
-use crate::human::actions::interact_action;
-use crate::human::controllers::terminal::TerminalHumanController;
+use crate::worldobject::human::actions::interact_action;
+use crate::worldobject::human::controllers::terminal::TerminalHumanController;
 use crate::quantities::duration;
 use crate::worldobject;
 use crate::world;
-use crate::components::inventory::{Inventory, NoInventoryItem};
+use crate::worldobject::components::inventory::{
+    Inventory,
+    item::{
+        InventoryItem,
+        none::NoInventoryItem
+    }
+};
 
 use crate::quantities;
 use crate::quantities::mass;
@@ -25,10 +31,10 @@ use crate::quantities::direction;
 use crate::quantities::force;
 use crate::quantities::distance;
 
-use crate::human::body::arm;
+use crate::worldobject::human::body::arm;
 use crate::worldobject::TypedWorldObject;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UnsouledHuman {
     // identity
     name: String,
@@ -103,12 +109,12 @@ impl worldobject::TypedWorldObject for UnsouledHuman {
         self.gender.subject_pronoun().to_string()
     }
 
-    fn collect(self: Box<Self>) -> Result<!, (worldobject::Error, Self)> {
+    fn collect(self: Box<Self>) -> Result<NoInventoryItem, (worldobject::Error, Box<Self>)> {
         Err((Box::new(HumanCollectError()), self))
     }
 
-    fn dummy(&self) -> Box<dyn worldobject::WorldObject> {
-        Box::new(UnsouledHuman {
+    fn dummy(&self) -> Self {
+        UnsouledHuman {
             name: self.name.clone(),
             gender: self.gender.clone(),
             mass: self.mass.clone(),
@@ -121,7 +127,7 @@ impl worldobject::TypedWorldObject for UnsouledHuman {
                 |arm| <arm::Arm as TypedWorldObject>::dummy(&arm)
             ),
             inventory: self.inventory.dummy()
-        })
+        }
     }
 
     fn examine(&self) -> String {
@@ -160,6 +166,24 @@ impl worldobject::TypedWorldObject for UnsouledHuman {
 
     fn mass(&self) -> quantities::Quantity<mass::Mass> {
         self.mass.clone()
+    }
+}
+
+impl TryFrom<&serde_json::Value> for UnsouledHuman {
+    type Error = String;
+
+    fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
+        let name = value.get("name").and_then(|v| v.as_str()).ok_or("name not found")?;
+        let gender = value.get("gender").map(|v| gender::Gender::try_from(v)).transpose().map_err(|_| "gender not found")?.ok_or("gender not found")?;
+
+        let speed = quantities::Quantity::<quantities::speed::Speed>::try_from(value.get("speed").cloned().ok_or("speed not found")?).map_err(|err| format!("failed to parse speed: {}", err))?;
+        let arm_left = value.get("arm_left").map(|v| arm::Arm::try_from(v)).transpose().map_err(|err| format!("failed to parse arm_left: {}", err))?;
+        let arm_right = value.get("arm_right").map(|v| arm::Arm::try_from(v)).transpose().map_err(|err| format!("failed to parse arm_right: {}", err))?;
+        let dominant_arm = value.get("dominant_arm").map(|v| direction::DirectionHorizontal::try_from(v)).transpose().map_err(|err| format!("failed to parse dominant_arm: {}", err))?.ok_or("dominant_arm not found")?;
+        let mass = value.get("mass").ok_or(String::from("mass not found"))
+            .and_then(|value| quantities::Quantity::<mass::Mass>::try_from(value.clone()).map_err(|err| format!("failed to parse mass: {}", err)))?;
+
+        Ok(UnsouledHuman::new(String::from(name), gender, speed, arm_left, arm_right, dominant_arm, mass, Inventory::new()))
     }
 }
 
@@ -264,7 +288,11 @@ impl serde::Serialize for UnsouledHuman {
 
 impl std::error::Error for AttackError {}
 
-impl worldobject::WorldObject for Human {
+impl worldobject::TypedWorldObject for Human {
+    type Dummy = UnsouledHuman;
+    // humans can't be collected
+    type CollectInventoryItem = NoInventoryItem;
+
     fn name(&self) -> String {
         self.unsouled.name.clone()
     }
@@ -277,12 +305,12 @@ impl worldobject::WorldObject for Human {
         self.unsouled.gender.subject_pronoun().to_string()
     }
 
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (worldobject::Error, Box<dyn worldobject::WorldObject>)> {
+    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (worldobject::Error, Box<Self>)> {
         Err((Box::new(HumanCollectError()), self))
     }
 
-    fn dummy(&self) -> Box<dyn worldobject::WorldObject> {
-        Box::new(self.unsouled.dummy())
+    fn dummy(&self) -> Self::Dummy {
+        self.unsouled.dummy()
     }
 
     fn examine(&self) -> String {

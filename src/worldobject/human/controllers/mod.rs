@@ -1,5 +1,5 @@
 use crate::world;
-use crate::human::actions;
+use crate::worldobject::human::actions;
 
 pub mod terminal;
 pub mod network;

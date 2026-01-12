@@ -1,8 +1,20 @@
+pub mod human;
+pub mod rat;
+pub mod sword;
+pub mod none;
+pub mod components;
+
 use socket2::Type;
 
 use crate::world;
 
-use crate::components::inventory::{Inventory, InventoryItem, NoInventoryItem};
+use crate::worldobject::components::inventory::{
+    Inventory,
+    item::{
+        InventoryItem,
+        none::NoInventoryItem
+    }
+};
 use crate::quantities;
 use crate::quantities::mass;
 use crate::quantities::force;
@@ -26,7 +38,7 @@ impl UpdateFn {
 // trait objects.  Implementing this trait automatically
 // implements the WorldObject trait, but may allow certain
 // users of the type to rely on more specific type constraints.
-pub trait TypedWorldObject: {
+pub trait TypedWorldObject {
     type Dummy: WorldObject + Sized + 'static;
     type CollectInventoryItem: InventoryItem + Sized + 'static;
 
@@ -81,10 +93,10 @@ impl<T: TypedWorldObject + 'static> WorldObject for T {
         <T as TypedWorldObject>::update(self, my_handle, world)
     }
 
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem<Dummy>>, (Error, Box<dyn WorldObject>)> {
+    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)> {
         <T as TypedWorldObject>::collect(self)
             .map(|item| Box::new(item) as Box<dyn InventoryItem>)
-            .map_err(|(err, obj)| (err, Box::new(obj) as Box<dyn WorldObject>))
+            .map_err(|(err, obj)| (err, obj as Box<dyn WorldObject>))
     }
 
     fn inventory(&self) -> Result<&Inventory, Error> {
@@ -137,55 +149,4 @@ pub trait WorldObject {
     fn send_message(&mut self, message: String) -> Result<(), Error>;
 
     fn interact(&mut self) -> Result<String, Error>;
-}
-
-/// NoWorldObject is an empty type that implements TypedWorldObject;
-pub struct NoWorldObject(!);
-
-// implement the TypedWorldObject trait for NoWorldObject
-// naturally, this should never actually be used,
-// but rust requires us to provide an implementation
-impl TypedWorldObject for NoWorldObject {
-    type Dummy = Self;
-    type CollectInventoryItem = NoInventoryItem;
-
-    fn name(&self) -> String {
-        String::from("nothing")
-    }
-
-    fn examine(&self) -> String {
-        String::from("nothing")
-    }
-
-    fn definite_description(&self) -> String {
-        String::from("nothing")
-    }
-    
-    fn pronoun(&self) -> String {
-        String::from("it")
-    }
-
-    fn dummy(&self) -> Self::Dummy {
-        Box::new(Self(self.0))
-    }
-
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<UpdateFn, Error> {
-        Ok(UpdateFn::no_op())
-    }
-
-    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)> {
-        Ok(Box::new(NoInventoryItem(self.0)))
-    }
-
-    fn inventory(&self) -> Result<&Inventory, Error> {
-        Err(Box::new(NoInventoryError()))
-    }
-
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error> {
-        Err(Box::new(NoInventoryError()))
-    }
-
-    fn mass(&self) -> quantities::Quantity<mass::Mass> {
-        quantities::Quantity::zero()
-    }
 }

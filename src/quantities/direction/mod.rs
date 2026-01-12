@@ -13,8 +13,11 @@ impl TryFrom<&serde_json::Value> for DirectionHorizontal {
     type Error = InvalidHorizontalDirectionError;
 
     fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
-        let value = value.as_str().ok_or(InvalidHorizontalDirectionError("invalid horizontal direction".to_string()))?;
-        Self::try_from(value)
+        match value.as_str().unwrap_or("invalid horizontal direction") {
+            "Left" => Ok(Self::Left),
+            "Right" => Ok(Self::Right),
+            _ => Err(InvalidHorizontalDirectionError(value.to_string())),
+        }
     }
 }
 
