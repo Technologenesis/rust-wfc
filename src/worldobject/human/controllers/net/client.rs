@@ -30,7 +30,7 @@ impl NetworkHumanControllerClient {
             &ip_address
         };
         
-        let mut stream = TcpStream::connect((addr, 7777)).await?;
+        let mut stream = TcpStream::connect((addr, 25565)).await?;
 
         let (unsouled, controller) = character.desouled();
 

@@ -46,7 +46,7 @@ impl Lobby {
 
     // create a new open lobby
     pub async fn open(mut self) -> Result<Vec<Box<dyn worldobject::WorldObject>>, Box<dyn std::error::Error>> {
-        let listener = TcpListener::bind(("127.0.0.1", 7777))
+        let listener = TcpListener::bind(("127.0.0.1", 25565))
             .await
             .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
 
