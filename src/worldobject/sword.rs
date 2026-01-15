@@ -45,9 +45,6 @@ impl Sword {
 }
 
 #[derive(Debug)]
-pub struct SwordCollectError ();
-
-#[derive(Debug)]
 pub struct SwordInventoryError ();
 
 impl fmt::Display for SwordInventoryError {
@@ -57,14 +54,6 @@ impl fmt::Display for SwordInventoryError {
 }
 
 impl error::Error for SwordInventoryError {}
-
-impl fmt::Display for SwordCollectError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "swords cannot be collected (yet)")
-    }
-}
-
-impl error::Error for SwordCollectError {}
 
 #[async_trait]
 impl TypedWorldObject for Sword {

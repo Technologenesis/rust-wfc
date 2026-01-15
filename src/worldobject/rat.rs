@@ -78,7 +78,11 @@ impl TypedWorldObject for Rat {
     }
 
     fn dummy(&self) -> Self {
-        Rat::new(self.mass.clone(), self.speed.clone())
+        Rat{
+            mass: self.mass.clone(),
+            speed: self.speed.clone(),
+            alive: self.alive
+        }
     }
 
     fn definite_description(&self) -> String {

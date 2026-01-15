@@ -1,14 +1,9 @@
-use crate::{
-    world::{
-        handle::WorldObjectHandle,
-        World
-    }
-};
-
 use std::fmt;
 
 use serde::Serialize;
 use serde::Deserialize;
+
+use crate::world::handle::WorldObjectHandle;
 
 #[derive(Serialize, Deserialize)]
 pub struct CollectAction {
