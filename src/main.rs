@@ -27,8 +27,12 @@ use world::{
     coord::WorldCoord,
 };
 
+use materials::Material;
+
 use worldobject::{
     WorldObject,
+    sword::Sword,
+    rat::Rat,
     human::{
         Human,
         controllers::{
@@ -110,6 +114,25 @@ async fn main() {
         println!("Characters: {:?}", characters.iter().map(|c| format!("{} ({})", c.name(), c.examine())).collect::<Vec<String>>());
 
         let mut world = World::new(logging_channel.logger());
+
+        // populate non-character objects
+        world.add_object(
+            String::from("sword"),
+            Box::new(Sword::new(
+                meters(1.0),
+                Material::Iron
+            )),
+            WorldCoord::new(meters(1.0), meters(0.0))
+        );
+        world.add_object(
+            String::from("rat"),
+            Box::new(Rat::new(
+                kilograms(1.0),
+                meters_per_second(1.0)
+            )),
+            WorldCoord::new(meters(2.0), meters(0.0))
+        );
+
         for character in characters {
             println!("Adding character to world: {}", character.name());
             world.add_object(character.name(), character, WorldCoord::new(quantities::distance::meters(0.0), quantities::distance::meters(0.0)));

@@ -3,8 +3,6 @@ use crate::worldobject::human::{
     actions,
 };
 
-use std::future::Future;
-use std::pin::Pin;
 use async_trait::async_trait;
 
 use crate::logging::Logger;
@@ -15,7 +13,6 @@ use super::message::NetworkHumanControllerMessage;
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::SyncIoBridge;
-use serde::Serializer;
 
 pub struct NetworkHumanController {
     logger: Logger<Box<dyn LoggerImpl>>,
@@ -34,14 +31,17 @@ impl NetworkHumanController {
 #[async_trait]
 impl controllers::HumanController for NetworkHumanController {
     async fn prompt_turn(&mut self) -> Result<actions::HumanAction, Box<dyn std::error::Error>> {
+        self.logger.info(String::from("prompting for turn across network controller...")).await;
         let json_content = serde_json::to_vec(&NetworkHumanControllerMessage::PromptTurn).map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())))?;
         self.tcp_stream.write_all(&json_content).await.map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())))?;
+        self.logger.info(String::from("sent prompt; waiting for action from network controller...")).await;
         
+        self.logger.info(String::from("reading action from network controller...")).await;
         let mut json_stream = serde_json::Deserializer::from_reader(SyncIoBridge::new(&mut self.tcp_stream)).into_iter::<serde_json::Value>();
-        
         let next_json = tokio::task::block_in_place(|| {
             json_stream.next().ok_or(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JSON")))
         })?;
+        self.logger.info(String::from("received action from network controller...")).await;
     
         match next_json {
             Ok(json) => {
@@ -54,7 +54,7 @@ impl controllers::HumanController for NetworkHumanController {
                 }
             }
             Err(e) => {
-                Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())))
+                Err(Box::new(e))
             }
         }
     }
