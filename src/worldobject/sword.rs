@@ -1,26 +1,46 @@
-use crate::world;
-use crate::materials;
-use crate::worldobject;
-use crate::worldobject::components::inventory::{
-    Inventory,
-    item::InventoryItem};
-use crate::quantities::distance;
-use crate::quantities::mass;
-use crate::quantities::force;
-use crate::quantities;
+use async_trait::async_trait;
+
+use crate::{
+    materials::Material,
+    quantities::{
+        Quantity,
+        mass::{
+            Mass,
+            grams
+        },
+        force::Force,
+        distance::{
+            Distance,
+            meters
+        }
+    },
+    world::{
+        World,
+        handle::WorldObjectHandle
+    },
+    worldobject::{
+        Error as WorldObjectError,
+        TypedWorldObject,
+        fns::update::UpdateFn,
+        components::inventory::{
+            Inventory,
+            item::InventoryItem
+        }
+    }
+};
 
 use std::fmt;
 use std::error;
 
 pub struct Sword {
-    mass: quantities::Quantity<mass::Mass>,
-    reach: quantities::Quantity<distance::Distance>,
-    material: materials::Material
+    mass: Quantity<Mass>,
+    reach: Quantity<Distance>,
+    material: Material
 }
 
 impl Sword {
-    pub fn new(reach: quantities::Quantity<distance::Distance>, material: materials::Material) -> Sword {
-        Sword { mass: mass::grams(1500.0), reach, material }
+    pub fn new(reach: Quantity<Distance>, material: Material) -> Sword {
+        Sword { mass: grams(1500.0), reach, material }
     }
 }
 
@@ -46,7 +66,8 @@ impl fmt::Display for SwordCollectError {
 
 impl error::Error for SwordCollectError {}
 
-impl worldobject::TypedWorldObject for Sword {
+#[async_trait]
+impl TypedWorldObject for Sword {
     type Dummy = Self;
     type CollectInventoryItem = Self;
 
@@ -54,8 +75,8 @@ impl worldobject::TypedWorldObject for Sword {
         String::from("sword")
     }
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<worldobject::UpdateFn, worldobject::Error> {
-        Ok(worldobject::UpdateFn::no_op())
+    async fn update(&mut self, _: WorldObjectHandle, _: &World) -> Result<UpdateFn, WorldObjectError> {
+        Ok(UpdateFn::no_op())
     }
 
     fn dummy(&self) -> Self {
@@ -63,34 +84,34 @@ impl worldobject::TypedWorldObject for Sword {
     }
 
     fn examine(&self) -> String {
-        format!("a sword forged from {} with a reach of {} meters", self.material, (&self.reach / &distance::meters(1.0)).cancel())
+        format!("a sword forged from {} with a reach of {} meters", self.material, (&self.reach / &meters(1.0)).cancel())
     }
 
-    fn collect(self: Box<Self>) -> Result<Self, (worldobject::Error, Box<Self>)> {
+    async fn collect(self: Box<Self>) -> Result<Self, (WorldObjectError, Box<Self>)> {
         Ok(*self)
     }
 
-    fn interact(&mut self) -> Result<String, worldobject::Error> {
+    async fn interact(&mut self) -> Result<String, WorldObjectError> {
         Ok(String::from("nothing happens"))
     }
 
-    fn inventory(&self) -> Result<&Inventory, Box<dyn std::error::Error>> {
+    fn inventory(&self) -> Result<&Inventory, WorldObjectError> {
         Err(Box::new(SwordInventoryError()))
     }
 
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Box<dyn std::error::Error>> {
+    fn inventory_mut(&mut self) -> Result<&mut Inventory, WorldObjectError> {
         Err(Box::new(SwordInventoryError()))
     }
 
-    fn mass(&self) -> quantities::Quantity<mass::Mass> {
+    fn mass(&self) -> Quantity<Mass> {
         self.mass.clone()
     }
 
-    fn apply_force(&mut self, force: &quantities::Quantity<force::Force>) -> Result<String, worldobject::Error> {
+    async fn apply_force(&mut self, _: &Quantity<Force>) -> Result<String, WorldObjectError> {
         Ok(String::from("the sword bends with the force, but recovers its shape"))
     }
 
-    fn send_message(&mut self, message: String) -> Result<(), worldobject::Error> {
+    async fn send_message(&mut self, _: String) -> Result<(), WorldObjectError> {
         Ok(())
     }
 
@@ -105,6 +126,6 @@ impl worldobject::TypedWorldObject for Sword {
 
 impl InventoryItem for Sword {
     fn dummy(&self) -> Box<dyn InventoryItem> {
-        Box::new(<Sword as worldobject::TypedWorldObject>::dummy(self))
+        Box::new(<Sword as TypedWorldObject>::dummy(self))
     }
 }

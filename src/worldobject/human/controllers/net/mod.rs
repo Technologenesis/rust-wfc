@@ -1,4 +1,6 @@
 pub mod client;
+mod message;
+pub mod controller;
 
 use std::sync::Mutex;
 
@@ -8,16 +10,23 @@ use std::net::SocketAddr;
 use tokio_util::io::SyncIoBridge;
 use std::io;
 
+use crate::logging::Logger;
+use crate::logging::LoggerImpl;
+
 use crate::worldobject::human;
 use crate::worldobject;
 
 pub struct Lobby {
+    logger: Logger<Box<dyn LoggerImpl>>,
+    new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>,
     characters: Vec<Box<dyn worldobject::WorldObject>>,
 }
 
 impl Lobby {
-    pub fn new() -> Self {
+    pub fn new(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>) -> Self {
         Self {
+            logger: logger.to_dyn(),
+            new_controller_logger,
             characters: Vec::new(),
         }
     }
@@ -36,20 +45,22 @@ impl Lobby {
     }
 
     // create a new open lobby
-    pub async fn open(mut self) -> Result<Vec<Box<dyn worldobject::WorldObject>>, ()> {
+    pub async fn open(mut self) -> Result<Vec<Box<dyn worldobject::WorldObject>>, Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(("127.0.0.1", 8080))
             .await
-            .map_err(|_| ())?;
+            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
 
         println!("Listening for connections; press enter to close the lobby and start your journey...");
         loop {
+            // rather insanely, the only reason this entire project uses
+            // tokio is to enable this specific piece of code.
             tokio::select! {
                 stream_and_socket_addr_result = listener.accept() => match stream_and_socket_addr_result {
                     Ok((stream, socket_addr)) => {
                         println!("Received connection from {}", socket_addr);
                         self.register_connection_with_lobby(stream, socket_addr).await;
                     },
-                    Err(_) => ()
+                    Err(e) => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
                 },
                 _ = wait_for_line() => {
                     println!("Received stop signal");
@@ -73,7 +84,7 @@ impl Lobby {
 
         if let Ok(unsouled) = human::UnsouledHuman::try_from(&next_json) {
             // TODO: Create proper network controller
-            if let Err(err) = self.add_character(human::Human::new(unsouled, human::controllers::network::NetworkHumanController::new(stream))) {
+            if let Err(err) = self.add_character(human::Human::new(unsouled, controller::NetworkHumanController::new(stream, (self.new_controller_logger)()))) {
                 println!("Error adding character: {}", err);
             }
         } else if let Err(err) = human::UnsouledHuman::try_from(&next_json) {

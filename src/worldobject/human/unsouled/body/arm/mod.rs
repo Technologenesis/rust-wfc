@@ -5,6 +5,8 @@ use serde::{
     Deserialize
 };
 
+use async_trait::async_trait;
+
 use crate::{
     quantities::{
         self, Quantity, distance::{
@@ -20,7 +22,7 @@ use crate::{
     },
     world::{
         World,
-        WorldObjectHandle,
+        handle::WorldObjectHandle,
     },
     worldobject::{
         Error, TypedWorldObject, UpdateFn, WorldObject, components::inventory::{
@@ -81,6 +83,7 @@ impl TryFrom<&serde_json::Value> for Arm {
     }
 }
 
+#[async_trait]
 impl TypedWorldObject for Arm {
     type Dummy = Self;
     type CollectInventoryItem = Self;
@@ -108,11 +111,11 @@ impl TypedWorldObject for Arm {
         }
     }
 
-    fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
         Ok(UpdateFn::no_op())
     }
 
-    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)> {
+    async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)> {
         Ok(*self)
     }
 
@@ -130,7 +133,7 @@ impl TypedWorldObject for Arm {
         ).unwrap_or(self.base_mass.clone())
     }
 
-    fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error> {
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error> {
         Ok(String::from(""))
     }
     
@@ -138,11 +141,11 @@ impl TypedWorldObject for Arm {
         String::from("an arm")
     }
 
-    fn send_message(&mut self, message: String) -> Result<(), Error> {
+    async fn send_message(&mut self, message: String) -> Result<(), Error> {
         Ok(())
     }
 
-    fn interact(&mut self) -> Result<String, Error> {
+    async fn interact(&mut self) -> Result<String, Error> {
         Ok(String::from("you can't think of anything particularly interesting to do with this."))
     }
 }

@@ -1,13 +1,12 @@
+pub mod item;
+
 use std::collections::HashMap;
 
-use crate::worldobject::TypedWorldObject;
-use crate::inventory::item::{InventoryItem, InventoryItemHandle};
+use item::{
+    InventoryItem,
+    InventoryItemHandle
+};
 
-use uuid;
-
-use serde::ser::SerializeStruct;
-
-pub mod item;
 
 pub struct Inventory(pub HashMap<item::InventoryItemHandle, Box<dyn InventoryItem>>);
 
@@ -20,8 +19,7 @@ impl<'de> serde::Deserialize<'de> for Inventory {
 
 impl serde::Serialize for Inventory {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let state = serializer.serialize_struct("Inventory", 0)?;
-        state.end()
+        serializer.serialize_none()
     }
 }
 

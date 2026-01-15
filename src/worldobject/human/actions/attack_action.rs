@@ -3,20 +3,27 @@ use std::fmt;
 use serde::Serialize;
 use serde::Deserialize;
 
-use crate::world;
-use crate::quantities::direction;
+use crate::{
+    world::{
+        handle::WorldObjectHandle
+    },
+    quantities::direction::{
+        DirectionHorizontal,
+        InvalidHorizontalDirectionError
+    }
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct AttackAction {
-    pub target_handle: world::WorldObjectHandle,
-    pub left_or_right_arm: Option<direction::DirectionHorizontal>
+    pub target_handle: WorldObjectHandle,
+    pub left_or_right_arm: Option<DirectionHorizontal>
 }
 
 #[derive(Debug)]
 pub enum AttackActionParseError {
     NoObjectHandleProvided,
     InvalidObjectHandle(String),
-    InvalidHandedness(direction::InvalidHorizontalDirectionError),
+    InvalidHandedness(InvalidHorizontalDirectionError),
 }
 
 impl fmt::Display for AttackActionParseError {
@@ -33,11 +40,11 @@ impl fmt::Display for AttackActionParseError {
 impl AttackAction {
     pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, AttackActionParseError> {
         let target_handle = words.next().ok_or(AttackActionParseError::NoObjectHandleProvided)?;
-        let target_handle = world::WorldObjectHandle::try_from(target_handle)
+        let target_handle = WorldObjectHandle::try_from(target_handle)
             .map_err(|_| AttackActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
 
         let left_or_right_arm = words.next().map(
-            |left_or_right_arm| direction::DirectionHorizontal::try_from(left_or_right_arm)
+            |left_or_right_arm| DirectionHorizontal::try_from(left_or_right_arm)
                 .map_err(|err| AttackActionParseError::InvalidHandedness(err))
         ).transpose()?;
 

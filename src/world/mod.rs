@@ -1,48 +1,41 @@
+pub mod coord;
+pub mod handle;
+
 use std::collections;
 use std::vec;
 use std::fmt;
 use std::error;
 
-use crate::quantities;
-use crate::worldobject;
-use crate::worldobject::components::inventory::item::InventoryItem;
-use crate::quantities::distance;
-use crate::quantities::direction;
-
-#[derive(Debug, Clone, Copy)]
-pub struct WorldCoord {
-    pub x: quantities::Quantity<distance::Distance>,
-    pub y: quantities::Quantity<distance::Distance>
-}
-
-impl WorldCoord {
-    pub fn new(x: quantities::Quantity<distance::Distance>, y: quantities::Quantity<distance::Distance>) -> WorldCoord {
-        WorldCoord { x, y }
+use crate::{
+    worldobject::{
+        WorldObject,
+        fns::Error as WorldObjectError,
+        components::inventory::item::InventoryItem
+    },
+    quantities::{
+        Quantity,
+        distance::Distance,
+        direction::DirectionHorizontalOrVertical
+    },
+    logging::{
+        Logger,
+        LoggerImpl,
+        DynLogger,
+        noop::NoopLogger
     }
+};
 
-    fn translate_direction(&mut self, direction: &direction::DirectionHorizontalOrVertical, distance: &quantities::Quantity<distance::Distance>) {
-        match &direction {
-            &direction::DirectionHorizontalOrVertical::Vertical(vertical_direction) => match vertical_direction {
-                direction::DirectionVertical::Up => self.y = &self.y + distance,
-                direction::DirectionVertical::Down => self.y = &self.y - distance
-            },
-            &direction::DirectionHorizontalOrVertical::Horizontal(horizontal_direction) => match horizontal_direction {
-                direction::DirectionHorizontal::Right => self.x = &self.x + distance,
-                direction::DirectionHorizontal::Left => self.x = &self.x - distance
-            },
-        }
-    }
-}
-
-pub type WorldObjectHandle = String;
+use handle::WorldObjectHandle;
+use coord::WorldCoord;
 
 pub struct World {
-    pub objects: collections::HashMap<WorldObjectHandle, (WorldCoord, Box<dyn worldobject::WorldObject>)>,
+    logger: DynLogger,
+    pub objects: collections::HashMap<WorldObjectHandle, (WorldCoord, Box<dyn WorldObject>)>,
 }
 
 #[derive(Debug)]
 pub enum WorldUpdateError {
-    ObjectUpdateFailed(WorldObjectHandle, worldobject::Error),
+    ObjectUpdateFailed(WorldObjectHandle, WorldObjectError),
 }
 
 impl fmt::Display for WorldUpdateError {
@@ -86,12 +79,14 @@ impl error::Error for WorldObjectGetError {}
 #[derive(Debug)]
 pub enum WorldObjectSendMessageError {
     NoSuchObject(WorldObjectHandle),
+    ErrorSendingMessage(Box<dyn std::error::Error>)
 }
 
 impl fmt::Display for WorldObjectSendMessageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoSuchObject(handle) => write!(f, "no object found for handle \"{}\"", handle)
+            Self::NoSuchObject(handle) => write!(f, "no object found for handle \"{}\"", handle),
+            Self::ErrorSendingMessage(err) => write!(f, "error sending message: {}", err)
         }
     }
 }
@@ -101,8 +96,8 @@ impl error::Error for WorldObjectSendMessageError {}
 #[derive(Debug)]
 pub enum WorldGiveItemError {
     NoSuchObject(WorldObjectHandle),
-    CoultNotGetInventory(WorldObjectHandle, worldobject::Error),
-    CouldNotGiveItem(WorldObjectHandle, worldobject::Error)
+    CoultNotGetInventory(WorldObjectHandle, WorldObjectError),
+    CouldNotGiveItem(WorldObjectHandle, WorldObjectError)
 }
 
 impl fmt::Display for WorldGiveItemError {
@@ -118,24 +113,25 @@ impl fmt::Display for WorldGiveItemError {
 impl error::Error for WorldGiveItemError {}
 
 impl World {
-    pub fn new() -> Self {
+    pub fn new(logger: Logger<impl LoggerImpl + 'static>) -> Self {
         World {
+            logger: logger.to_dyn(),
             objects: collections::HashMap::new(),
         }
     }
 
-    pub fn add_object(&mut self, handle: WorldObjectHandle, object: Box<dyn worldobject::WorldObject>, position: WorldCoord) {
+    pub fn add_object(&mut self, handle: WorldObjectHandle, object: Box<dyn WorldObject>, position: WorldCoord) {
         self.objects.insert(handle, (position, object));
     }
 
-    pub fn get_object(&self, handle: &WorldObjectHandle) -> Result<&dyn worldobject::WorldObject, WorldObjectGetError> {
+    pub fn get_object(&self, handle: &WorldObjectHandle) -> Result<&dyn WorldObject, WorldObjectGetError> {
         let (_, obj_box) = self.objects.get(handle)
             .ok_or(WorldObjectGetError::NoSuchObject(handle.clone()))?;
 
         Ok(obj_box.as_ref())
     }
 
-    pub fn get_object_mut(&mut self, handle: &WorldObjectHandle) -> Result<&mut dyn worldobject::WorldObject, WorldObjectGetError> {
+    pub fn get_object_mut(&mut self, handle: &WorldObjectHandle) -> Result<&mut dyn WorldObject, WorldObjectGetError> {
         let (_, obj_box) = self.objects.get_mut(handle)
             .ok_or(WorldObjectGetError::NoSuchObject(handle.clone()))?;
 
@@ -149,7 +145,7 @@ impl World {
         Ok(*coord)
     }
 
-    pub fn take_object(&mut self, handle: &WorldObjectHandle) -> Result<Box<dyn worldobject::WorldObject>, WorldObjectGetError> {
+    pub fn take_object(&mut self, handle: &WorldObjectHandle) -> Result<Box<dyn WorldObject>, WorldObjectGetError> {
         let (_, obj_box) = self.objects.remove(handle)
             .ok_or(WorldObjectGetError::NoSuchObject(handle.clone()))?;
 
@@ -168,16 +164,21 @@ impl World {
         Ok(())
     }
 
-    pub fn send_message_to(&mut self, handle: &WorldObjectHandle, message: String) -> Result<(), WorldObjectSendMessageError> {
+    pub async fn send_message_to(&mut self, handle: &WorldObjectHandle, message: String) -> Result<(), WorldObjectSendMessageError> {
+        self.logger.info(format!("Sending message to object with handle {}...", handle)).await;
+
         let (_, object) = self.objects.get_mut(handle)
             .ok_or(WorldObjectSendMessageError::NoSuchObject(handle.clone()))?;
 
-        object.send_message(message);
+        if let Err(err) = object.send_message(message).await {
+            self.logger.error(format!("Failed to send message to object with handle {}: {}", handle, err)).await;
+            return Err(WorldObjectSendMessageError::ErrorSendingMessage(err));
+        }
 
         Ok(())
     }
 
-    pub fn move_object(&mut self, handle: &WorldObjectHandle, direction: &direction::DirectionHorizontalOrVertical, distance: &quantities::Quantity<distance::Distance>) -> Result<(), WorldObjectMoveError> {
+    pub fn move_object(&mut self, handle: &WorldObjectHandle, direction: &DirectionHorizontalOrVertical, distance: &Quantity<Distance>) -> Result<(), WorldObjectMoveError> {
         if !self.objects.contains_key(handle) {
             return Err(WorldObjectMoveError::NoSuchObject(handle.clone()))
         }
@@ -189,29 +190,43 @@ impl World {
         Ok(())
     }
 
-    pub fn update(&mut self) -> Result<(), WorldUpdateError> {
+    pub async fn update(&mut self) -> Result<(), WorldUpdateError> {
+        self.logger.info(String::from("Updating world...")).await;
+
         let mut update_fns = vec!();
 
-        let world_clone = self.dummy();
+        let world_dummy = self.dummy();
         for (handle, (_, object)) in self.objects.iter_mut() {
-            update_fns.push((handle.clone(), object.update(handle.clone(), &world_clone)
-                .map_err(|e| WorldUpdateError::ObjectUpdateFailed(handle.clone(), e))));
+            self.logger.info(format!("Prompting object with handle {} for turn...", handle)).await;
+            update_fns.push((handle.clone(), object.update(handle.clone(), &world_dummy).await));
         }
 
         for (handle, update_fn_res) in update_fns {
             match update_fn_res {
-                Ok(update_fn) => update_fn.call(self)
-                    .map(|message| message.map(|message| self.send_message_to(&handle, message)))
-                    .map_err(|err| self.send_message_to(&handle, format!("encountered an error while executing your action: {}", err))),
-                Err(e) => return Err(e),
+                Ok(update_fn) => {
+                    self.logger.info(format!("calling update function for object with handle {}...", handle)).await;
+
+                    let update_res = update_fn.call(self).await;
+                    if let Ok(Some(message)) = update_res {
+                        _ = self.send_message_to(&handle, message).await;
+                    } else if let Err(err) = update_res {
+                        self.logger.error(format!("Failed to run update function for object with handle {}: {}", handle, err)).await;
+                        _ = self.send_message_to(&handle, err.to_string()).await;
+                    }
+                },
+                Err(err) => {
+                    self.logger.error(format!("Failed to prompt object with handle {} for turn: {}", handle, err)).await;
+                    _ = self.send_message_to(&handle, err.to_string()).await;
+                }
             };
         }
 
         Ok(())
     }
 
-    pub fn dummy(&self) -> World {
-        World {
+    pub fn dummy(&self) -> Self {
+        Self {
+            logger: NoopLogger::new().to_dyn(),
             objects: self.objects.iter().map(|(handle, (coord, object))| (handle.clone(), (coord.clone(), object.dummy()))).collect(),
         }
     }

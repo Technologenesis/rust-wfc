@@ -1,7 +1,4 @@
-use std::fmt::{self, write};
-
-use crate::quantities;
-use crate::quantities::density;
+use std::fmt;
 
 #[derive(Clone)]
 pub enum Material {

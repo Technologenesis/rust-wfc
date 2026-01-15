@@ -1,4 +1,9 @@
-use crate::world;
+use crate::{
+    world::{
+        handle::WorldObjectHandle,
+        World
+    }
+};
 
 use serde::Serialize;
 use serde::Deserialize;
@@ -7,7 +12,7 @@ use std::fmt;
 
 #[derive(Serialize, Deserialize)]
 pub struct InteractAction {
-    pub target_handle: world::WorldObjectHandle
+    pub target_handle: WorldObjectHandle
 }
 
 #[derive(Debug)]
@@ -28,7 +33,7 @@ impl fmt::Display for InteractActionParseError {
 impl InteractAction {
     pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, InteractActionParseError> {
         let target_handle = words.next().ok_or(InteractActionParseError::NoObjectHandleProvided)?;
-        let target_handle = world::WorldObjectHandle::try_from(target_handle)
+        let target_handle = WorldObjectHandle::try_from(target_handle)
             .map_err(|_| InteractActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
         Ok(InteractAction { target_handle })
     }

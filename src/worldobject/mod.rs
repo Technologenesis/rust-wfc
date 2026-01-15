@@ -3,72 +3,68 @@ pub mod rat;
 pub mod sword;
 pub mod none;
 pub mod components;
+pub mod fns;
 
-use socket2::Type;
+use async_trait::async_trait;
 
-use crate::world;
-
-use crate::worldobject::components::inventory::{
-    Inventory,
-    item::{
-        InventoryItem,
-        none::NoInventoryItem
+use crate::{
+    world::{
+        World,
+        handle::WorldObjectHandle
+    },
+    worldobject::components::inventory::{
+        Inventory,
+        item::InventoryItem
+    },
+    quantities::{
+        Quantity,
+        mass::Mass,
+        force::Force
     }
 };
-use crate::quantities;
-use crate::quantities::mass;
-use crate::quantities::force;
 
-pub struct UpdateFn(pub Box<dyn FnOnce(&mut world::World) -> Result<Option<String>, Error>>);
-pub type InteractFn = Box<dyn FnOnce(&mut world::World) -> Result<(), Error>>;
-pub type Error = Box<dyn std::error::Error>;
+use fns::update::UpdateFn;
 
-impl UpdateFn {
-    pub fn call(self, world: &mut world::World) -> Result<Option<String>, Error> {
-        self.0(world)
-    }
-
-    pub fn no_op() -> Self {
-        Self(Box::new(|_| Ok(None)))
-    }
-}
+type Error = Box<dyn std::error::Error>;
 
 // TypedWorldObject is a trait similar to WorldObject,
 // but with type parameters where WorldObject uses dyn
 // trait objects.  Implementing this trait automatically
 // implements the WorldObject trait, but may allow certain
 // users of the type to rely on more specific type constraints.
-pub trait TypedWorldObject {
+#[async_trait]
+pub trait TypedWorldObject: Send {
     type Dummy: WorldObject + Sized + 'static;
     type CollectInventoryItem: InventoryItem + Sized + 'static;
 
-    // used as a hint when generating handles for this object
+    // linguistic accessors
     fn name(&self) -> String;
     fn examine(&self) -> String;
     fn definite_description(&self) -> String;
     fn pronoun(&self) -> String;
 
     // creates a new object with the same properties as this one,
-    // minus any fields that are not cloneable (typically controllers)
+    // minus any fields that are not cloneable (e.g. controllers,
+    // loggers)
     fn dummy(&self) -> Self::Dummy;
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<UpdateFn, Error>;
-    
-    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)>;
-
+    // inventory accessors
     fn inventory(&self) -> Result<&Inventory, Error>;
     fn inventory_mut(&mut self) -> Result<&mut Inventory, Error>;
 
-    fn mass(&self) -> quantities::Quantity<mass::Mass>;
+    // mass accessor
+    fn mass(&self) -> Quantity<Mass>;
 
-    fn apply_force(&mut self, force: &quantities::Quantity<force::Force>) -> Result<String, Error>;
-
-    fn send_message(&mut self, message: String) -> Result<(), Error>;
-
-    fn interact(&mut self) -> Result<String, Error>;
+    // game mechanics; all async to allow interaction with the controller.
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
+    async fn send_message(&mut self, message: String) -> Result<(), Error>;
+    async fn interact(&mut self) -> Result<String, Error>;
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error>;
+    async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)>;
 }
 
-impl<T: TypedWorldObject + 'static> WorldObject for T {
+#[async_trait]
+impl<T: TypedWorldObject + Send + Sync + 'static> WorldObject for T {
     fn name(&self) -> String {
         <T as TypedWorldObject>::name(self)
     }
@@ -89,12 +85,12 @@ impl<T: TypedWorldObject + 'static> WorldObject for T {
         Box::new(<T as TypedWorldObject>::dummy(self))
     }
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<UpdateFn, Error> {
-        <T as TypedWorldObject>::update(self, my_handle, world)
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
+        <T as TypedWorldObject>::update(self, my_handle, world).await
     }
 
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)> {
-        <T as TypedWorldObject>::collect(self)
+    async fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)> {
+        <T as TypedWorldObject>::collect(self).await
             .map(|item| Box::new(item) as Box<dyn InventoryItem>)
             .map_err(|(err, obj)| (err, obj as Box<dyn WorldObject>))
     }
@@ -107,46 +103,46 @@ impl<T: TypedWorldObject + 'static> WorldObject for T {
         <T as TypedWorldObject>::inventory_mut(self)
     }
 
-    fn mass(&self) -> quantities::Quantity<mass::Mass> {
+    fn mass(&self) -> Quantity<Mass> {
         <T as TypedWorldObject>::mass(self)
     }
 
-    fn apply_force(&mut self, force: &quantities::Quantity<force::Force>) -> Result<String, Error> {
-        <T as TypedWorldObject>::apply_force(self, force)
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error> {
+        <T as TypedWorldObject>::apply_force(self, force).await
     }
 
-    fn send_message(&mut self, message: String) -> Result<(), Error> {
-        <T as TypedWorldObject>::send_message(self, message)
+    async fn send_message(&mut self, message: String) -> Result<(), Error> {
+        <T as TypedWorldObject>::send_message(self, message).await
     }
 
-    fn interact(&mut self) -> Result<String, Error> {
-        <T as TypedWorldObject>::interact(self)
+    async fn interact(&mut self) -> Result<String, Error> {
+        <T as TypedWorldObject>::interact(self).await
     }
 }
 
-pub trait WorldObject {
-    // used as a hint when generating handles for this object
+#[async_trait]
+pub trait WorldObject: Send + Sync {
+    // linguistic accessors
     fn name(&self) -> String;
     fn examine(&self) -> String;
     fn definite_description(&self) -> String;
     fn pronoun(&self) -> String;
 
+    // physics
+    fn mass(&self) -> Quantity<Mass>;
+
+    // inventory accessors
+    fn inventory(&self) -> Result<&Inventory, Error>;
+    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error>;
+
     // creates a new object with the same properties as this one,
     // minus any fields that are not cloneable (typically controllers)
     fn dummy(&self) -> Box<dyn WorldObject>;
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<UpdateFn, Error>;
-    
-    fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)>;
-
-    fn inventory(&self) -> Result<&Inventory, Error>;
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error>;
-
-    fn mass(&self) -> quantities::Quantity<mass::Mass>;
-
-    fn apply_force(&mut self, force: &quantities::Quantity<force::Force>) -> Result<String, Error>;
-
-    fn send_message(&mut self, message: String) -> Result<(), Error>;
-
-    fn interact(&mut self) -> Result<String, Error>;
+    // game mechanics; all async to allow interaction with the controller.
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error>;
+    async fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)>;
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
+    async fn send_message(&mut self, message: String) -> Result<(), Error>;
+    async fn interact(&mut self) -> Result<String, Error>;
 }

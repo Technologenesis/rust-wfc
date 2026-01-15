@@ -1,4 +1,9 @@
-use crate::world;
+use crate::{
+    world::{
+        handle::WorldObjectHandle,
+        World
+    }
+};
 
 use std::fmt;
 
@@ -7,7 +12,7 @@ use serde::Deserialize;
 
 #[derive(Serialize, Deserialize)]
 pub struct CollectAction {
-    pub target_handle: world::WorldObjectHandle
+    pub target_handle: WorldObjectHandle
 }
 
 #[derive(Debug)]
@@ -28,7 +33,7 @@ impl fmt::Display for CollectActionParseError {
 impl CollectAction {
     pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, CollectActionParseError> {
         let target_handle = words.next().ok_or(CollectActionParseError::NoObjectHandleProvided)?;
-        let target_handle = world::WorldObjectHandle::try_from(target_handle)
+        let target_handle = WorldObjectHandle::try_from(target_handle)
             .map_err(|_| CollectActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
         Ok(CollectAction { target_handle })
     }

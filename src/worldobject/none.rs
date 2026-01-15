@@ -1,13 +1,39 @@
-use crate::world;
-use crate::worldobject;
-use crate::worldobject::components::inventory::item::none;
-use crate::worldobject::components::inventory;
-use crate::quantities;
-use crate::quantities::mass::{
-    Mass,
-    kilograms
+// This module contains the NoWorldObject type;
+// It is a wrapper around the never type that implements
+// the TypedWorldObject trait.
+//
+// This is useful when we want to guarantee that a WorldObject
+// will not be yielded by a particular operation - for example,
+// humans can't be collected, so their collect method returns
+// a Result<NoWorldObject, ...>, guaranteeing that the result
+// will always be an error.
+
+use async_trait::async_trait;
+
+use crate::{
+    world::{
+        World,
+        handle::WorldObjectHandle
+    },
+    quantities::{
+        Quantity,
+        mass::{
+            Mass,
+            kilograms
+        },
+        force::Force
+    }
 };
-use crate::quantities::force;
+
+use super::{
+    TypedWorldObject,
+    components::inventory::{
+        Inventory,
+        item::none::NoInventoryItem
+    },
+    fns::update::UpdateFn,
+    Error
+};
 
 /// NoWorldObject is an empty type that implements TypedWorldObject;
 /// it wraps the never type to ensure that it is never instantiated.
@@ -62,9 +88,10 @@ impl std::error::Error for NoWorldObjectInteractError {}
 // implement the TypedWorldObject trait for NoWorldObject
 // naturally, this should never actually be used,
 // but rust requires us to provide an implementation
-impl worldobject::TypedWorldObject for NoWorldObject {
+#[async_trait]
+impl TypedWorldObject for NoWorldObject {
     type Dummy = Self;
-    type CollectInventoryItem = none::NoInventoryItem;
+    type CollectInventoryItem = NoInventoryItem;
 
     fn name(&self) -> String {
         String::from("nothing")
@@ -86,35 +113,35 @@ impl worldobject::TypedWorldObject for NoWorldObject {
         NoWorldObject(self.0)
     }
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<worldobject::UpdateFn, worldobject::Error> {
-        Ok(worldobject::UpdateFn::no_op())
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
+        Ok(UpdateFn::no_op())
     }
 
-    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (worldobject::Error, Box<Self>)> {
-        Ok(none::NoInventoryItem(self.0))
+    async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)> {
+        Ok(NoInventoryItem(self.0))
     }
 
-    fn inventory(&self) -> Result<&inventory::Inventory, worldobject::Error> {
+    fn inventory(&self) -> Result<&Inventory, Error> {
         Err(Box::new(NoWorldObjectInventoryError))
     }
 
-    fn inventory_mut(&mut self) -> Result<&mut inventory::Inventory, worldobject::Error> {
+    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error> {
         Err(Box::new(NoWorldObjectInventoryError))
     }
 
-    fn mass(&self) -> quantities::Quantity<Mass> {
+    fn mass(&self) -> Quantity<Mass> {
         kilograms(0.0)
     }
 
-    fn apply_force(&mut self, force: &quantities::Quantity<force::Force>) -> Result<String, worldobject::Error> {
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error> {
         Err(Box::new(NoWorldObjectForceApplicationError))
     }
 
-    fn send_message(&mut self, message: String) -> Result<(), worldobject::Error> {
+    async fn send_message(&mut self, message: String) -> Result<(), Error> {
         Err(Box::new(NoWorldObjectMessageSendError))
     }
 
-    fn interact(&mut self) -> Result<String, worldobject::Error> {
+    async fn interact(&mut self) -> Result<String, Error> {
         Err(Box::new(NoWorldObjectInteractError))
     }
 }

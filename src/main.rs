@@ -1,26 +1,73 @@
 #![feature(never_type)]
+#![feature(async_trait_bounds)]
 
 mod worldobject;
 mod world;
 mod materials;
 mod quantities;
-mod lobby;
+mod logging;
 
-use std::io;
+use std::{
+    collections::HashMap,
+    io,
+    fs::File,
+};
 
-use worldobject::human::controllers::terminal;
-use worldobject::human::body::arm;
-use worldobject::human::body::arm::hand;
-use worldobject::components::inventory;
+use chrono::Utc;
 
-use quantities::distance;
-use quantities::force;
-use quantities::duration;
-use quantities::mass;
-use quantities::speed;
+use logging::{
+    Logger,
+    LoggerImpl,
+    basic::BasicLogger,
+    channel::LoggingChannel,
+};
 
-use crate::worldobject::human::gender;
-use crate::quantities::direction;
+use world::{
+    World,
+    coord::WorldCoord,
+};
+
+use worldobject::{
+    WorldObject,
+    human::{
+        Human,
+        controllers::{
+            net::{
+                Lobby,
+                client::NetworkHumanControllerClient
+            },
+            terminal::TerminalHumanController
+        },
+        unsouled::{
+            UnsouledHuman,
+            body::{
+                arm::arm,
+                arm::hand::hand,
+            },
+            gender::Gender
+        }
+    },
+    components::inventory::{
+        Inventory,
+        item::InventoryItem
+    }
+};
+
+use quantities::{
+    distance::{
+        meters,
+    },
+    mass::{
+        kilograms,
+    },
+    speed::{
+        meters_per_second,
+    },
+    force::{
+        newtons,
+    },
+    direction::DirectionHorizontal
+};
 
 #[tokio::main]
 async fn main() {
@@ -33,9 +80,49 @@ async fn main() {
     let mut choice = String::new();
     io::stdin().read_line(&mut choice).unwrap();
     choice = choice.trim().to_lowercase();
+
+    let out = File::create("world.log").unwrap();
+
+    let mut kwargs = HashMap::new();
+    kwargs.insert(String::from("timestamp"), String::from(Utc::now().to_string()));
+
+    let logger = BasicLogger::new(out)
+        .format(String::from("{timestamp} [{level}]: {message}"), kwargs);
+    // logging_channel takes ownership of the logger.
+    // it can then be used to create new loggers which will forward messages to the original logger
+    // in a thread-safe manner.
+    let logging_channel = LoggingChannel::new(logger);
+
     if choice == "host" {
-        let characters = start_lobby(worldobject::human::Human::new(character, worldobject::human::controllers::terminal::TerminalHumanController{})).await.unwrap();
+        let characters = {
+            // clone the logging channel so that the lobby can use it to
+            // create a new logger for each network controller.
+            let logging_channel = logging_channel.clone();
+            start_lobby(
+                logging_channel.logger().to_dyn(),
+                Box::new(move || logging_channel.logger().to_dyn()),
+                Human::new(
+                    character,
+                    TerminalHumanController{}
+                )
+            ).await.unwrap()
+        };
         println!("Characters: {:?}", characters.iter().map(|c| format!("{} ({})", c.name(), c.examine())).collect::<Vec<String>>());
+
+        let mut world = World::new(logging_channel.logger());
+        for character in characters {
+            println!("Adding character to world: {}", character.name());
+            world.add_object(character.name(), character, WorldCoord::new(quantities::distance::meters(0.0), quantities::distance::meters(0.0)));
+        }
+
+        loop {
+            match world.update().await {
+                Ok(()) => (),
+                Err(err) => {
+                    println!("Error updating world: {:?}", err);
+                }
+            }
+        }
     } else if choice == "join" {
         println!("Enter the IP address of the lobby you want to join:");
 
@@ -43,11 +130,11 @@ async fn main() {
         io::stdin().read_line(&mut ip_address).unwrap();
         ip_address = ip_address.trim().to_string();
 
-        let client = lobby::client::LobbyClient::connect(ip_address, character).await.unwrap();
+        NetworkHumanControllerClient::connect(ip_address, Human::new(character, TerminalHumanController{})).await.unwrap();
     }
 }
 
-fn create_character() -> worldobject::human::UnsouledHuman {
+fn create_character() -> UnsouledHuman {
     println!("What is your name?");
     let mut name = String::new();
 
@@ -69,7 +156,7 @@ fn create_character() -> worldobject::human::UnsouledHuman {
         res = io::stdin().read_line(&mut gender_str);
     }
     gender_str = gender_str.trim().to_string();
-    let mut gender_res = gender::Gender::try_from(gender_str.as_str());
+    let mut gender_res = Gender::try_from(gender_str.as_str());
     while !gender_res.is_ok() {
         gender_str = String::new();
 
@@ -80,40 +167,40 @@ fn create_character() -> worldobject::human::UnsouledHuman {
             res = io::stdin().read_line(&mut gender_str);
         }
 
-        gender_res = gender::Gender::try_from(gender_str.as_str());
+        gender_res = Gender::try_from(gender_str.as_str());
     }
     let gender = gender_res.unwrap();
     println!("After some effort, you bring forth clear memories of being a {}.", gender.noun());
 
-    worldobject::human::UnsouledHuman::new(
+    UnsouledHuman::new(
         name,
         gender,
-        speed::meters_per_second(5.0),
-        Some(arm::arm(
-            mass::kilograms(10.0),
-            distance::meters(1.0),
-            force::newtons(1000.0),
-            Some(hand::hand(
-                mass::kilograms(1.0),
-                None::<Box<dyn worldobject::components::inventory::item::InventoryItem>>)),
+        meters_per_second(5.0),
+        Some(arm(
+            kilograms(10.0),
+            meters(1.0),
+            newtons(1000.0),
+            Some(hand(
+                kilograms(1.0),
+                None::<Box<dyn InventoryItem>>)),
         )),
-        Some(arm::arm(
-            mass::kilograms(10.0),
-            distance::meters(1.0),
-            force::newtons(1000.0),
-            Some(hand::hand(
-                mass::kilograms(1.0),
-                None::<Box<dyn worldobject::components::inventory::item::InventoryItem>>
+        Some(arm(
+            kilograms(10.0),
+            meters(1.0),
+            newtons(1000.0),
+            Some(hand(
+                kilograms(1.0),
+                None::<Box<dyn InventoryItem>>
             )),
         )),
-        direction::DirectionHorizontal::Right,
-        mass::kilograms(0.0),
-        inventory::Inventory::new(),
+        DirectionHorizontal::Right,
+        kilograms(0.0),
+        Inventory::new(),
     )
 }
 
-async fn start_lobby<'a>(character: worldobject::human::Human) -> Result<Vec<Box<dyn worldobject::WorldObject>>, ()> {
-    let mut lobby = lobby::Lobby::new();
+async fn start_lobby<'a>(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>, character: Human) -> Result<Vec<Box<dyn WorldObject>>, ()> {
+    let mut lobby = Lobby::new(logger, new_controller_logger);
 
     lobby.add_character(character)
         .map_err(|_| ())?;

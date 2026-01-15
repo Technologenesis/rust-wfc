@@ -1,18 +1,30 @@
 use serde::ser::SerializeStruct;
+use async_trait::async_trait;
 
-use crate::worldobject::components::inventory::{
-    Inventory,
-    item::InventoryItem
+use crate::{
+    worldobject::components::inventory::{
+        Inventory,
+        item::InventoryItem
+    },
+    quantities::{
+        Quantity,
+        mass::Mass,
+        force::Force
+    },
+    worldobject::{
+        TypedWorldObject,
+        Error as WorldObjectError,
+        UpdateFn
+    },
+    world::{
+        handle::WorldObjectHandle,
+        World
+    }
 };
-use crate::worldobject;
-use crate::world;
-use crate::quantities;
-use crate::quantities::mass;
-use crate::worldobject::human::body::arm::hand;
 use std::fmt;
 
 pub struct Hand {
-    base_mass: quantities::Quantity<quantities::mass::Mass>,
+    base_mass: Quantity<Mass>,
     held_item: Option<Box<dyn InventoryItem>>,
 }
 
@@ -35,7 +47,8 @@ impl fmt::Display for HandDeserializeError {
 
 impl std::error::Error for HandInventoryError {}
 
-impl worldobject::TypedWorldObject for Hand {
+#[async_trait]
+impl TypedWorldObject for Hand {
     type Dummy = Self;
     type CollectInventoryItem = Self;
 
@@ -60,23 +73,23 @@ impl worldobject::TypedWorldObject for Hand {
         }
     }
 
-    fn update(&mut self, my_handle: world::WorldObjectHandle, world: &world::World) -> Result<worldobject::UpdateFn, worldobject::Error> {
-        Ok(worldobject::UpdateFn::no_op())
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, WorldObjectError> {
+        Ok(UpdateFn::no_op())
     }
 
-    fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (worldobject::Error, Box<Self>)> {
+    async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (WorldObjectError, Box<Self>)> {
         Ok(*self)
     }
 
-    fn inventory(&self) -> Result<&Inventory, worldobject::Error> {
+    fn inventory(&self) -> Result<&Inventory, WorldObjectError> {
         Err(Box::new(HandInventoryError {}))
     }
 
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, worldobject::Error> {
+    fn inventory_mut(&mut self) -> Result<&mut Inventory, WorldObjectError> {
         Err(Box::new(HandInventoryError {}))
     }
 
-    fn mass(&self) -> quantities::Quantity<quantities::mass::Mass> {
+    fn mass(&self) -> Quantity<Mass> {
         let mut ret = self.base_mass.clone();
 
         if let Some(held_item) = &self.held_item {
@@ -86,7 +99,7 @@ impl worldobject::TypedWorldObject for Hand {
         ret
     }
 
-    fn apply_force(&mut self, force: &quantities::Quantity<quantities::force::Force>) -> Result<String, worldobject::Error> {
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, WorldObjectError> {
         Ok(String::from(""))
     }
     
@@ -94,18 +107,18 @@ impl worldobject::TypedWorldObject for Hand {
         String::from("an arm")
     }
 
-    fn send_message(&mut self, message: String) -> Result<(), worldobject::Error> {
+    async fn send_message(&mut self, message: String) -> Result<(), WorldObjectError> {
         Ok(())
     }
 
-    fn interact(&mut self) -> Result<String, worldobject::Error> {
+    async fn interact(&mut self) -> Result<String, WorldObjectError> {
         Ok(String::from("you can't think of anything particularly interesting to do with this."))
     }
 }
 
 impl InventoryItem for Hand {
     fn dummy(&self) -> Box<dyn InventoryItem> {
-        Box::new(<Hand as worldobject::TypedWorldObject>::dummy(self))
+        Box::new(<Hand as TypedWorldObject>::dummy(self))
     }
 }
 
@@ -114,7 +127,7 @@ impl<'de> TryFrom<&serde_json::Value> for Hand {
 
     fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
         let base_mass = value.get("base_mass").ok_or(String::from("base_mass not found"))
-            .and_then(|v| quantities::Quantity::<quantities::mass::Mass>::try_from(v.clone()).map_err(|err| format!("failed to parse base_mass: {}", err)))?;
+            .and_then(|v| Quantity::<Mass>::try_from(v.clone()).map_err(|err| format!("failed to parse base_mass: {}", err)))?;
         
         Ok(Hand {
             held_item: None,
@@ -131,7 +144,7 @@ impl serde::Serialize for Hand {
     }
 }
 
-pub fn hand(base_mass: quantities::Quantity<quantities::mass::Mass>, held_item: Option<impl InventoryItem + 'static>) -> Hand {
+pub fn hand(base_mass: Quantity<Mass>, held_item: Option<impl InventoryItem + 'static>) -> Hand {
     Hand {
         held_item: held_item.map(|item| {
             let item: Box<dyn InventoryItem> = Box::new(item);
