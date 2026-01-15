@@ -7,11 +7,21 @@ use tokio_util::io::SyncIoBridge;
 
 use super::message::NetworkHumanControllerMessage;
 
+// NetworkHumanControllerClient wraps a HumanController
+// and communicates with a remote NetworkHumanController,
+// allowing the underlying controller to remotely control
+// a human character over a network connection.
 pub struct NetworkHumanControllerClient {
     subcontroller: Box<dyn HumanController>
 }
 
 impl NetworkHumanControllerClient {
+    // connect connects to a remote NetworkHumanController
+    // at the given IP address and port,
+    // and registers the given character with the remote controller.
+    // It then perpetually waits for prompts from the remote controller,
+    // forwards them to the underlying local controller, and sends the results
+    // back to the remote controller.
     pub async fn connect(ip_address: String, character: human::Human) -> Result<(), Box<dyn std::error::Error>> {
         // Normalize "localhost" to "127.0.0.1" for consistency
         let addr = if ip_address == "localhost" {
@@ -20,7 +30,7 @@ impl NetworkHumanControllerClient {
             &ip_address
         };
         
-        let mut stream = TcpStream::connect((addr, 8080)).await?;
+        let mut stream = TcpStream::connect((addr, 7777)).await?;
 
         let (unsouled, controller) = character.desouled();
 
@@ -61,6 +71,9 @@ impl NetworkHumanControllerClient {
         }
     }
 
+    // handle_message handles a message from the remote controller
+    // by forwarding it to the underlying local controller
+    // and sending the results back to the remote controller.
     async fn handle_message(message: NetworkHumanControllerMessage, subcontroller: &mut Box<dyn HumanController>, tcp_stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>> {
         match message {
             NetworkHumanControllerMessage::PromptTurn => {
