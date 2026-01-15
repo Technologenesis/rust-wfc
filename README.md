@@ -15,3 +15,4 @@ In-game, you take actions by typing commands.  The parser is still very primitiv
 - `collect <handle>`: this action will cause the object with the given handle to be removed from the world, converted into an inventory object,
 and added to your inventory.
 - `interact <handle>`: this action will cause your character to interact with the given object in a way that depends on the object being interacted with.
+- `examine <handle>`: this action will provide you with a short description of the object with the given handle
