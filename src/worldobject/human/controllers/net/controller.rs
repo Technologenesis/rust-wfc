@@ -57,7 +57,7 @@ impl controllers::HumanController for NetworkHumanController {
     
         match next_json {
             Ok(json) => {
-                println!("Received action: {}", json.to_string());
+                self.logger.info(format!("Received action: {}", json.to_string())).await;
                 if let Ok(action) = serde_json::from_value(json) {
                     Ok(action)
                 }

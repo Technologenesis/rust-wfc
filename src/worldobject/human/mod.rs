@@ -451,8 +451,8 @@ impl TypedWorldObject for Human {
         Ok(())
     }
 
-    async fn apply_force(&mut self, _: &Quantity<Force>) -> Result<String, WorldObjectError> {
-        Ok(format!("{}'s hefty constitution absorbs the force.", self.definite_description()))
+    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, WorldObjectError> {
+        self.unsouled.apply_force(force).await
     }
 
     fn mass(&self) -> Quantity<Mass> {

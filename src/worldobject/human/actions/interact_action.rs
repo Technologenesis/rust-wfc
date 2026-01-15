@@ -1,14 +1,11 @@
-use crate::{
-    world::{
-        handle::WorldObjectHandle,
-        World
-    }
-};
+use std::fmt;
 
 use serde::Serialize;
 use serde::Deserialize;
 
-use std::fmt;
+use crate::world::handle::WorldObjectHandle;
+
+
 
 #[derive(Serialize, Deserialize)]
 pub struct InteractAction {

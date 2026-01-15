@@ -74,7 +74,7 @@ impl fmt::Display for Unitless {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Quantity<T: QuantityTrait + ?Sized + TryFrom<serde_json::Value>>(pub T);
 
 impl<T: QuantityTrait + ?Sized + TryFrom<serde_json::Value>> TryFrom<serde_json::Value> for Quantity<T>
@@ -85,12 +85,6 @@ where T::Error: fmt::Display
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
         T::try_from(value).map_err(|err| format!("failed to parse quantity: {}", err))
             .map(|t| Quantity(t))
-    }
-}
-
-impl<T: QuantityTrait + Clone> Clone for Quantity<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
     }
 }
 
@@ -254,5 +248,3 @@ impl<T:QuantityTrait + fmt::Display> fmt::Display for Quantity<T> {
         self.0.fmt(f)
     }
 }
-
-impl<T: QuantityTrait + Copy> Copy for Quantity<T> {}
