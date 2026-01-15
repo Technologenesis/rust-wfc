@@ -58,18 +58,10 @@ use worldobject::{
 };
 
 use quantities::{
-    distance::{
-        meters,
-    },
-    mass::{
-        kilograms,
-    },
-    speed::{
-        meters_per_second,
-    },
-    force::{
-        newtons,
-    },
+    distance::meters,
+    mass::kilograms,
+    speed::meters_per_second,
+    force::newtons,
     direction::DirectionHorizontal
 };
 

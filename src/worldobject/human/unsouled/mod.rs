@@ -19,6 +19,8 @@ use crate::{
 use gender::Gender;
 use body::arm::Arm;
 
+// An UnsouledHuman is just a human character without a controller.
+// The `dummy` method of human returns an UnsouledHuman.
 #[derive(Serialize)]
 pub struct UnsouledHuman {
     // identity
