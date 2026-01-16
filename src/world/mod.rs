@@ -207,6 +207,18 @@ impl World {
             update_fns.push((handle.clone(), object.update(handle.clone(), &world_dummy).await));
         }
 
+        {
+            let mut handles = Vec::new();
+            for handle in self.objects.keys() {
+                handles.push(handle.clone());
+            }
+            
+            for handle in handles {
+                _ = self.send_message_to(&handle, "\nAll actions submitted!\n".to_string()).await;
+            }
+        };
+
+
         let descriptions_by_handle = self.objects.iter().map(|(handle, (_, object))| (handle.clone(), object.definite_description())).collect::<HashMap<_, _>>();
 
         for (handle, update_fn_res) in update_fns {
