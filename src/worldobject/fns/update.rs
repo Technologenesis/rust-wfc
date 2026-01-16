@@ -1,8 +1,18 @@
 use futures::future::BoxFuture;
 
-use crate::world::World;
+use crate::{
+    lang::VerbPhrase,
+    world::World
+};
 
 use super::Error;
+
+pub struct Action {
+    exec: Box<dyn FnOnce(&mut World) -> BoxFuture<
+        Result<Option<String>, Error>
+    >>,
+    pub verb_phrase: VerbPhrase
+}
 
 pub struct UpdateFn(pub Box<dyn FnOnce(&mut World) -> BoxFuture<
     Result<Option<String>, Error>

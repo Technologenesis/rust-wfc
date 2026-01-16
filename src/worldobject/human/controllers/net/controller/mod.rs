@@ -3,6 +3,8 @@
 // and is used to communicate with a NetworkHumanControllerClient
 // allowing a human character to be controlled over a network connection.
 
+pub mod error;
+
 use crate::worldobject::human::{
     controllers,
     actions,

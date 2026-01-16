@@ -214,46 +214,6 @@ impl std::fmt::Display for AttackError {
         }
     }
 }
-/*
-impl<'de> serde::Deserialize<'de> for UnsouledHuman {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = serde_json::Value::deserialize(deserializer)?;
-
-        let name = value.get("name")
-            .ok_or(D::Error::custom("name not found"))
-            .and_then(
-                |v| v.as_str().map(
-                    |v| String::from(v)
-                ).ok_or(D::Error::custom("invalid name"))
-            )?;
-
-        let gender = value.get("gender").map(|v| gender::Gender::try_from(v))
-            .unwrap_or(Ok(gender::Gender::Other)).map_err(|err| D::Error::custom(err.to_string()))?;
-
-        let speed = speed::meters_per_second(value.get("speed")
-            .and_then(|v| v.as_f64())
-            .ok_or(D::Error::custom("speed not found"))?);
-
-        let arm_left = value.get("arm_left").map(|v| arm::Arm::try_from(v)).transpose().map_err(|err| D::Error::custom(err.to_string()))?;
-        let arm_right = value.get("arm_right").map(|v| arm::Arm::try_from(v)).transpose().map_err(|err| D::Error::custom(err.to_string()))?;
-        let dominant_arm = value.get("dominant_arm")
-            .map(
-                |v| direction::DirectionHorizontal::try_from(v)
-                    .map_err(|err| D::Error::custom(err.to_string()))
-            ).unwrap_or(Ok(direction::DirectionHorizontal::Right))?;
-
-        let mass = mass::kilograms(value.get("mass").and_then(|v| v.as_f64()).ok_or(D::Error::custom("mass not found"))?);
-
-        Ok(UnsouledHuman::new(name, gender, speed, arm_left, arm_right, dominant_arm, mass, Inventory::new()))
-    }
-}
-
-impl serde::Serialize for UnsouledHuman {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        
-    }
-}
-*/
 
 impl std::error::Error for AttackError {}
 
