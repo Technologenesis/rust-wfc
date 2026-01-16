@@ -222,59 +222,54 @@ impl World {
         let descriptions_by_handle = self.objects.iter().map(|(handle, (_, object))| (handle.clone(), object.definite_description())).collect::<HashMap<_, _>>();
 
         for (handle, update_fn_res) in update_fns {
-            match update_fn_res {
+            let (third_person_message, second_person_message) = match update_fn_res {
                 Ok(update_fn) => {
                     self.logger.info(format!("calling update function for object with handle {}...", handle)).await;
 
                     let update_verb_phrase = update_fn.verb_phrase.clone();
                     let update_res = update_fn.call(self).await;
-                    if let Ok(message_opt) = update_res {
-                        let third_person_message = format!(
-                            "{} {}",
-                            descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
-                            update_verb_phrase.conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
-                        );
 
-                        for (message_recipient_handle, object) in &mut self.objects {
-                            if message_recipient_handle == &handle {
-                                let second_person_message = message_opt.clone()
-                                    .unwrap_or(format!(
-                                        "{} {}",
-                                        "You",
-                                        update_verb_phrase.conjugate(&GrammaticalPerson::SecondPersonSingular)
-                                    ));
-                                _ = object.1.send_message(second_person_message).await;
-                            } else {
-                                _ = object.1.send_message(third_person_message.clone()).await;
-                            }
+                    match update_res {
+                        Ok(message_opt) => {
+                            let third_person_message = format!(
+                                "{} {}",
+                                descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
+                                update_verb_phrase.conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
+                            );
+
+                            let second_person_message = message_opt.clone().unwrap_or(format!(
+                                "{} {}",
+                                "You",
+                                update_verb_phrase.conjugate(&GrammaticalPerson::SecondPersonSingular)
+                            ));
+
+                            (third_person_message, second_person_message)
                         }
-                    } else if let Err(err) = update_res {
-                        self.logger.error(format!("Failed to run update function for object with handle {}: {}", handle, err)).await;
-                        let third_person_message = format!(
-                            "{} {}",
-                            descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
-                            VerbPhrase::Transitive(
-                                TransitiveVerbPhrase {
-                                    verb: TransitiveVerb::new(ToDo),
-                                    direct_object: String::from("nothing"),
-                                }
-                            ).conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
-                        );
-                        for (message_recipient_handle, object) in &mut self.objects {
-                            if message_recipient_handle == &handle {
-                                _ = object.1.send_message(format!(
-                                    "{}; you {}",
-                                    err.to_string(),
-                                    VerbPhrase::Transitive(
-                                        TransitiveVerbPhrase {
-                                            verb: TransitiveVerb::new(ToDo),
-                                            direct_object: String::from("nothing"),
-                                        }
-                                    ).conjugate(&GrammaticalPerson::SecondPersonSingular)
-                                )).await;
-                            } else {
-                                _ = object.1.send_message(third_person_message.clone()).await;
-                            }
+                        Err(err) => {
+                            self.logger.error(format!("Failed to run update function for object with handle {}: {}", handle, err)).await;
+                            let third_person_message = format!(
+                                "{} {}",
+                                descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
+                                VerbPhrase::Transitive(
+                                    TransitiveVerbPhrase {
+                                        verb: TransitiveVerb::new(ToDo),
+                                        direct_object: String::from("nothing"),
+                                    }
+                                ).conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
+                            );
+
+                            let second_person_message = format!(
+                                "{}; you {}",
+                                err.to_string(),
+                                VerbPhrase::Transitive(
+                                    TransitiveVerbPhrase {
+                                        verb: TransitiveVerb::new(ToDo),
+                                        direct_object: String::from("nothing"),
+                                    }
+                                ).conjugate(&GrammaticalPerson::SecondPersonSingular)
+                            );
+
+                            (third_person_message, second_person_message)
                         }
                     }
                 },
@@ -292,25 +287,27 @@ impl World {
                         ).conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
                     );
 
-                    for (message_recipient_handle, object) in &mut self.objects {
-                        if message_recipient_handle == &handle {
-                            _ = object.1.send_message(format!(
-                                "{}; you {}",
-                                err.to_string(),
-                                VerbPhrase::Transitive(
-                                    TransitiveVerbPhrase {
-                                        verb: TransitiveVerb::new(ToDo),
-                                        direct_object: String::from("nothing"),
-                                    }
-                                ).conjugate(&GrammaticalPerson::SecondPersonSingular)
-                            )).await;
-                        } else {
-                            _ = object.1.send_message(third_person_message.clone()).await;
-                        }
-                    }
-                    _ = self.send_message_to(&handle, err.to_string()).await;
+                    let second_person_message = format!(
+                        "you issued an invalid command; you {}",
+                        VerbPhrase::Transitive(
+                            TransitiveVerbPhrase {
+                                verb: TransitiveVerb::new(ToDo),
+                                direct_object: String::from("nothing"),
+                            }
+                        ).conjugate(&GrammaticalPerson::SecondPersonSingular)
+                    );
+
+                    (third_person_message, second_person_message)
                 }
             };
+
+            for (message_recipient_handle, object) in &mut self.objects {
+                if message_recipient_handle == &handle {
+                    _ = object.1.send_message(second_person_message.clone()).await;
+                } else {
+                    _ = object.1.send_message(third_person_message.clone()).await;
+                }
+            }
         }
 
         Ok(())

@@ -102,7 +102,11 @@ impl TypedWorldObject for Rat {
     }
 
     async fn interact(&mut self) -> Result<String, WorldObjectError> {
-        Ok(String::from("the rat squeaks happily."))
+        if self.alive {
+            Ok(String::from("the rat squeaks happily."))
+        } else {
+            Ok(String::from("the rat does nothing."))
+        }
     }
 
     fn inventory(&self) -> Result<&Inventory, WorldObjectError> {

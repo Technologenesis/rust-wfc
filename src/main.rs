@@ -11,43 +11,15 @@ mod util;
 mod character_creation;
 mod lobby;
 
-use std::{
-    collections::HashMap,
-    io,
-    fs::File,
-};
-
-use logging::{
-    basic::BasicLogger,
-    channel::LoggingChannel,
-};
-
-use world::{
-    World,
-    coord::WorldCoord,
-};
-
-use materials::Material;
-
-use lobby::host;
-
-use worldobject::{
-    WorldObject,
-    sword::Sword,
-    rat::Rat,
-    human::{
-        Human,
-        controllers::{
-            net::client::NetworkHumanControllerClient,
-            terminal::TerminalHumanController
-        }
-    }
-};
-
-use quantities::{
-    distance::meters,
-    mass::kilograms,
-    speed::meters_per_second
+use {
+    materials::Material,
+    lobby::host,
+    std::{collections::HashMap, io, fs::File},
+    logging::{basic::BasicLogger, channel::LoggingChannel},
+    world::{World, coord::WorldCoord},
+    worldobject::{WorldObject, sword::Sword, rat::Rat,
+        human::controllers::net::client::NetworkHumanControllerClient},
+    quantities::{distance::meters, mass::kilograms, speed::meters_per_second}
 };
 
 #[tokio::main]

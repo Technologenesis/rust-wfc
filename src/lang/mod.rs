@@ -1,3 +1,6 @@
+// This module houses language-related types and traits
+// It is used to generate natural-language text describing game events
+
 pub mod verbs;
 
 use std::fmt::{Display, Formatter, Error};
