@@ -24,8 +24,73 @@ use crate::{
             Human,
             controllers::net::controller::NetworkHumanController
         }
+    },
+    world::{
+        World,
+        coord::WorldCoord
+    },
+    quantities::{
+        distance::meters,
+        direction::DirectionHorizontal
     }
 };
+
+#[derive(Debug)]
+pub enum HostError {
+    AddCharacterError(Box<dyn std::error::Error>),
+    ListenerError(Box<dyn std::error::Error>),
+    RegisterConnectionError(Box<dyn std::error::Error>),
+}
+
+impl std::fmt::Display for HostError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AddCharacterError(e) => write!(f, "Error adding character: {}", e),
+            Self::ListenerError(e) => write!(f, "Error creating listener: {}", e),
+            Self::RegisterConnectionError(e) => write!(f, "Error registering connection: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for HostError {}
+
+pub async fn host(
+    logger: Logger<impl LoggerImpl + 'static>,
+    new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>,
+    mut world: World,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut lobby = Lobby::new(logger, new_controller_logger);
+
+    let listener = TcpListener::bind(("0.0.0.0", 25565))
+        .await
+        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    println!("Listening for connections; press enter to close the lobby and start your journey...");
+    loop {
+        // rather insanely, the only reason this entire project uses
+        // tokio is to enable this specific piece of code.
+        tokio::select! {
+            stream_and_socket_addr_result = listener.accept() => match stream_and_socket_addr_result {
+                Ok((stream, socket_addr)) => {
+                    lobby.logger.info(format!("Received connection from {}", socket_addr)).await;
+                    lobby.register_connection(stream, socket_addr).await;
+                },
+                Err(e) => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
+            },
+            _ = wait_for_line() => {
+                lobby.logger.info(String::from("Received stop signal")).await;
+                break;
+            }
+        };
+    };
+
+    for character in lobby.characters {
+        println!("Adding character to world: {}", character.name());
+        world.add_object(character.name(), character, WorldCoord::new(meters(0.0), meters(0.0)));
+    }
+
+    Ok(())
+}
 
 pub struct Lobby {
     logger: Logger<Box<dyn LoggerImpl>>,
@@ -43,9 +108,9 @@ impl Lobby {
     }
 
     pub fn add_character<'a>(
-        &'a mut self,
+        &mut self,
         character: impl WorldObject + 'static,
-    ) -> Result<(), Box<dyn std::error::Error + 'a>> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let name = character.name();
 
         self.characters.push(Box::new(character));
@@ -57,33 +122,11 @@ impl Lobby {
 
     // create a new open lobby
     pub async fn open(mut self) -> Result<Vec<Box<dyn WorldObject>>, Box<dyn std::error::Error>> {
-        let listener = TcpListener::bind(("0.0.0.0", 25565))
-            .await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-
-        println!("Listening for connections; press enter to close the lobby and start your journey...");
-        loop {
-            // rather insanely, the only reason this entire project uses
-            // tokio is to enable this specific piece of code.
-            tokio::select! {
-                stream_and_socket_addr_result = listener.accept() => match stream_and_socket_addr_result {
-                    Ok((stream, socket_addr)) => {
-                        self.logger.info(format!("Received connection from {}", socket_addr)).await;
-                        self.register_connection_with_lobby(stream, socket_addr).await;
-                    },
-                    Err(e) => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
-                },
-                _ = wait_for_line() => {
-                    self.logger.info(String::from("Received stop signal")).await;
-                    break;
-                }
-            };
-        };
 
         Ok(self.characters)
     }
 
-    async fn register_connection_with_lobby(&mut self, mut stream: TcpStream, _:  SocketAddr) {
+    async fn register_connection(&mut self, mut stream: TcpStream, _:  SocketAddr) {
         println!("Reading character information from connection...");
         let mut json_stream = serde_json::Deserializer::from_reader(SyncIoBridge::new(&mut stream)).into_iter::<serde_json::Value>();
 

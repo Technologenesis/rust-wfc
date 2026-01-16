@@ -20,8 +20,6 @@ use std::{
 use chrono::Utc;
 
 use logging::{
-    Logger,
-    LoggerImpl,
     basic::BasicLogger,
     channel::LoggingChannel,
 };
@@ -33,7 +31,7 @@ use world::{
 
 use materials::Material;
 
-use lobby::Lobby;
+use lobby::host;
 
 use worldobject::{
     WorldObject,
@@ -44,28 +42,14 @@ use worldobject::{
         controllers::{
             net::client::NetworkHumanControllerClient,
             terminal::TerminalHumanController
-        },
-        unsouled::{
-            UnsouledHuman,
-            body::{
-                arm::arm,
-                arm::hand::hand,
-            },
-            gender::Gender
         }
-    },
-    components::inventory::{
-        Inventory,
-        item::InventoryItem
     }
 };
 
 use quantities::{
     distance::meters,
     mass::kilograms,
-    speed::meters_per_second,
-    force::newtons,
-    direction::DirectionHorizontal
+    speed::meters_per_second
 };
 
 #[tokio::main]
@@ -81,31 +65,15 @@ async fn main() {
     let out = File::create("world.log").unwrap();
 
     let mut kwargs = HashMap::new();
-    kwargs.insert(String::from("timestamp"), String::from(Utc::now().to_string()));
 
     let logger = BasicLogger::new(out)
-        .format(String::from("{timestamp} [{level}]: {message}"), kwargs);
+        .format(String::from("[{level}]: {message}"), kwargs);
     // logging_channel takes ownership of the logger.
     // it can then be used to create new loggers which will forward messages to the original logger
     // in a thread-safe manner.
     let logging_channel = LoggingChannel::new(logger);
 
     if choice == "host" {
-        let characters = {
-            // clone the logging channel so that the lobby can use it to
-            // create a new logger for each network controller.
-            let logging_channel = logging_channel.clone();
-            start_lobby(
-                logging_channel.logger().to_dyn(),
-                Box::new(move || logging_channel.logger().to_dyn()),
-                Human::new(
-                    character,
-                    TerminalHumanController{}
-                )
-            ).await.unwrap()
-        };
-        println!("Characters: {:?}", characters.iter().map(|c| format!("{} ({})", c.name(), c.examine())).collect::<Vec<String>>());
-
         let mut world = World::new(logging_channel.logger());
 
         // populate non-character objects
@@ -126,19 +94,14 @@ async fn main() {
             WorldCoord::new(meters(2.0), meters(0.0))
         );
 
-        for character in characters {
-            println!("Adding character to world: {}", character.name());
-            world.add_object(character.name(), character, WorldCoord::new(quantities::distance::meters(0.0), quantities::distance::meters(0.0)));
-        }
+        // add local player
+        world.add_object(
+            character.name(),
+            Box::new(character),
+            WorldCoord::new(meters(0.0), meters(0.0))
+        );
 
-        loop {
-            match world.update().await {
-                Ok(()) => (),
-                Err(err) => {
-                    println!("Error updating world: {:?}", err);
-                }
-            }
-        }
+        host(logging_channel.logger(), Box::new(move || logging_channel.logger().to_dyn()), world).await.unwrap();
     } else if choice == "join" {
         println!("Enter the IP address of the lobby you want to join:");
 
@@ -148,15 +111,4 @@ async fn main() {
 
         NetworkHumanControllerClient::connect(ip_address, Human::new(character, TerminalHumanController{})).await.unwrap();
     }
-}
-
-async fn start_lobby<'a>(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>, character: Human) -> Result<Vec<Box<dyn WorldObject>>, ()> {
-    let mut lobby = Lobby::new(logger, new_controller_logger);
-
-    lobby.add_character(character)
-        .map_err(|_| ())?;
-
-    let characters = lobby.open().await.unwrap();
-
-    Ok(characters)
 }
