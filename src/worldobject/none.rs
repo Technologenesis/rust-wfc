@@ -31,7 +31,7 @@ use super::{
         Inventory,
         item::none::NoInventoryItem
     },
-    fns::update::UpdateFn,
+    fns::update::Action,
     Error
 };
 
@@ -113,8 +113,8 @@ impl TypedWorldObject for NoWorldObject {
         NoWorldObject(self.0)
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
-        Ok(UpdateFn::no_op())
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error> {
+        Ok(Action::no_op())
     }
 
     async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)> {

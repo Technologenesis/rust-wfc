@@ -9,7 +9,7 @@ use crate::{
         none,
         WorldObject,
         TypedWorldObject,
-        UpdateFn,
+        fns::update::Action,
         Error as WorldObjectError
     },
     quantities::{
@@ -51,7 +51,7 @@ impl TypedWorldObject for NoInventoryItem {
         Self(TypedWorldObject::dummy(&self.0))
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, WorldObjectError> {
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, WorldObjectError> {
         WorldObject::update(&mut self.0, my_handle, world).await
     }
 

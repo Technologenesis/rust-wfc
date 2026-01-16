@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::Utc;
 
 use super::Logger;
 use super::LoggerImpl;
@@ -36,6 +37,7 @@ impl<L: LoggerImpl + Send + Sync> LoggerImpl for FormatLoggerImpl<L> {
         }
         formatted = formatted.replace("{message}", &message);
         formatted = formatted.replace("{level}", &level.to_string());
+        formatted = formatted.replace("{timestamp}", &Utc::now().to_string());
         self.underlying_logger_impl.log(level, formatted).await;
     }
 }

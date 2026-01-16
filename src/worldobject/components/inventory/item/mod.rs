@@ -8,7 +8,7 @@ use crate::{
     },
     worldobject::{
         WorldObject,
-        UpdateFn,
+        fns::update::Action,
         Error as WorldObjectError
     },
     quantities::{
@@ -45,7 +45,7 @@ impl WorldObject for Box<dyn InventoryItem> {
         (**self).name()
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &crate::world::World) -> Result<UpdateFn, WorldObjectError> {
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &crate::world::World) -> Result<Action, WorldObjectError> {
         (**self).update(my_handle, world).await
     }
 

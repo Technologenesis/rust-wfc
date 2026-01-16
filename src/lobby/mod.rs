@@ -89,7 +89,14 @@ pub async fn host(
         world.add_object(character.name(), character, WorldCoord::new(meters(0.0), meters(0.0)));
     }
 
-    Ok(())
+    loop {
+        match world.update().await {
+            Ok(()) => (),
+            Err(err) => {
+                println!("Error updating world: {:?}", err);
+            }
+        }
+    }
 }
 
 pub struct Lobby {
@@ -99,7 +106,7 @@ pub struct Lobby {
 }
 
 impl Lobby {
-    pub fn new(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>) -> Self {
+    fn new(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>) -> Self {
         Self {
             logger: logger.to_dyn(),
             new_controller_logger,
@@ -107,7 +114,7 @@ impl Lobby {
         }
     }
 
-    pub fn add_character<'a>(
+    fn add_character<'a>(
         &mut self,
         character: impl WorldObject + 'static,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -118,12 +125,6 @@ impl Lobby {
         println!("\"{}\" has joined the lobby", name);
 
         Ok(())
-    }
-
-    // create a new open lobby
-    pub async fn open(mut self) -> Result<Vec<Box<dyn WorldObject>>, Box<dyn std::error::Error>> {
-
-        Ok(self.characters)
     }
 
     async fn register_connection(&mut self, mut stream: TcpStream, _:  SocketAddr) {

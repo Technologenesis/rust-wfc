@@ -8,6 +8,18 @@ use futures::future::BoxFuture;
 use async_trait::async_trait;
 
 use crate::{
+    lang::{
+        VerbPhrase,
+        IntransitiveVerb,
+        TransitiveVerb,
+        TransitiveVerbPhrase,
+        verbs::{
+            ToMove,
+            ToCollect,
+            ToAttack,
+            ToInteract,
+        },
+    },
     world::{
         World,
         handle::WorldObjectHandle
@@ -24,7 +36,7 @@ use crate::{
     worldobject::{
         TypedWorldObject,
         Error as WorldObjectError,
-        fns::update::UpdateFn,
+        fns::update::Action,
         components::inventory::{
             Inventory,
             item::none::NoInventoryItem
@@ -117,8 +129,8 @@ impl TypedWorldObject for UnsouledHuman {
     }
     */
 
-    async fn update(&mut self, _: WorldObjectHandle, _: &World) -> Result<UpdateFn, WorldObjectError> {
-        Ok(UpdateFn::no_op())
+    async fn update(&mut self, _: WorldObjectHandle, _: &World) -> Result<Action, WorldObjectError> {
+        Ok(Action::no_op())
     }
 
     async fn send_message(&mut self, _: String) -> Result<(), WorldObjectError> {
@@ -265,7 +277,7 @@ impl TypedWorldObject for Human {
     }
     */
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, WorldObjectError> {
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, WorldObjectError> {
         let action = self.controller.prompt_turn().await?;
 
         match action {
@@ -277,52 +289,69 @@ impl TypedWorldObject for Human {
                     return Err(Box::new(HumanUpdateError::MoveError(MoveError::DistanceTooGreat)));
                 }
 
-                Ok(UpdateFn(Box::new(move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
-                    Box::pin(async move {
-                        world.move_object(&my_handle, &direction, &dist)
-                            .map_err(|err| Box::new(err))?;
+                Ok(Action{
+                    exec: Box::new(
+                        move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
+                            Box::pin(async move {
+                                world.move_object(&my_handle, &direction, &dist)
+                                    .map_err(|err| Box::new(err))?;
 
-                        let dist_f64 = (&dist / &meters(1.0)).cancel().0.0;
+                                let dist_f64 = (&dist / &meters(1.0)).cancel().0.0;
 
-                        Ok(Some(format!("you move {} meters {}", dist_f64, direction)))
-                    })
-                })))
+                                Ok(Some(format!("you move {} meters {}", dist_f64, direction)))
+                            })
+                        }
+                    ),
+                    verb_phrase: VerbPhrase::Intransitive(
+                        IntransitiveVerb::new(ToMove)
+                    )
+                })
             }
             actions::HumanAction::Examine(actions::examine_action::ExamineAction {
                 target_handle
             }) => {
-                {
-                    let description = world.get_object(&target_handle)
-                        .map(|object| object.examine())
-                        .map_err(|err| Box::new(err))?;
+                let description = world.get_object(&target_handle)
+                    .map(|object| object.examine())
+                    .map_err(|err| Box::new(err))?;
                     
-                    self.controller.display_message(description).await?;
-                }
+                self.controller.display_message(description).await?;
                 
-                Ok(UpdateFn::no_op())
+                Ok(Action::no_op())
             },
             actions::HumanAction::Collect(actions::collect_action::CollectAction {
                 target_handle
-            }) => Ok(UpdateFn(Box::new(move |world: &mut World| {
-                    Box::pin(async move {
-                        let location = world.locate_object(&target_handle)?;
-                        let object = world.take_object(&target_handle)?;
+            }) => Ok(Action{
+                exec: {
+                    let target_handle = target_handle.clone();
+                    Box::new(|world: &mut World| {
+                        Box::pin(async move {
+                            let location = world.locate_object(&target_handle)?;
+                            let object = world.take_object(&target_handle)?;
 
-                        let object_desc = object.definite_description();
+                            let object_desc = object.definite_description();
 
-                        let inventory_item = object.collect().await
-                            .or_else(|(err, og_object)| {
-                                world.add_object(target_handle.clone(), og_object, location);
-                                Err(err)
-                        })?;
+                            let inventory_item = object.collect().await
+                                .or_else(|(err, og_object)| {
+                                    world.add_object(target_handle.clone(), og_object, location);
+                                    Err(err)
+                            })?;
 
-                        world.give_item_to(&my_handle, inventory_item)
-                            .map_err(|err| Box::new(err))?;
+                            world.give_item_to(&my_handle, inventory_item)
+                                .map_err(|err| Box::new(err))?;
 
-                        Ok(Some(format!("you collect {}", object_desc)))
+                            Ok(Some(format!("you collect {}", object_desc)))
+                        })
                     })
-                })
-            )),
+                },
+                verb_phrase: VerbPhrase::Transitive(
+                    TransitiveVerbPhrase {
+                        verb: TransitiveVerb::new(ToCollect),
+                        direct_object: world.get_object(&target_handle)
+                            .map(|object| object.definite_description())
+                            .map_err(|err| Box::new(err))?
+                    }
+                )
+            }),
             actions::HumanAction::Circumspect => {
                 let descs = world.objects.iter()
                     .map(|(handle, (_, object))| format!("- {}: {}", handle, object.examine()))
@@ -336,7 +365,7 @@ impl TypedWorldObject for Human {
 
                 self.controller.display_message(message).await?;
                 
-                Ok(UpdateFn::no_op())
+                Ok(Action::no_op())
             },
             actions::HumanAction::Attack(actions::attack_action::AttackAction {
                 left_or_right_arm,
@@ -349,37 +378,63 @@ impl TypedWorldObject for Human {
 
                 let punch_force = arm.punch_force.clone();
 
-                Ok(UpdateFn(Box::new(
-                    move |world: &mut World| {
-                        Box::pin(async move {
-                            let object = world.get_object_mut(&target_handle)
-                                .map_err(|err| Box::new(err))?;
+                Ok(Action{
+                    exec: {
+                        let target_handle = target_handle.clone();
+                        Box::new(
+                            move |world: &mut World| {
+                                Box::pin(async move {
+                                    let object = world.get_object_mut(&target_handle)
+                                        .map_err(|err| Box::new(err))?;
 
-                            let object_desc = object.definite_description();
+                                    let object_desc = object.definite_description();
 
-                            let msg = object.apply_force(&punch_force).await
-                                .unwrap_or_else(|err| format!("failed to apply force: {}", err));
+                                    let msg = object.apply_force(&punch_force).await
+                                        .unwrap_or_else(|err| format!("failed to apply force: {}", err));
 
-                            Ok(Some(format!("you punch {}; {}", object_desc, msg)))
-                        })
-                    }
-                )))
+                                    Ok(Some(format!("you punch {}; {}", object_desc, msg)))
+                                })
+                            }
+                        )
+                    },
+                    verb_phrase: VerbPhrase::Transitive(
+                        TransitiveVerbPhrase {
+                            verb: TransitiveVerb::new(ToAttack),
+                            direct_object: world.get_object(&target_handle)
+                                .map(|object| object.definite_description())
+                                .map_err(|err| Box::new(err))?
+                        }
+                    )
+                })
             },
             HumanAction::Interact(InteractAction{
                 target_handle
             }) => {
-                Ok(UpdateFn(Box::new(
-                    move |world: &mut World| {
-                        Box::pin(async move {
-                            let object = world.get_object_mut(&target_handle)
-                                .map_err(|err| Box::new(err))?;
-            
-                            let msg = object.interact().await?;
+                Ok(Action{
+                    exec: {
+                        let target_handle = target_handle.clone();
+                        Box::new(
+                            move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
+                                Box::pin(async move {
+                                    let object = world.get_object_mut(&target_handle)
+                                        .map_err(|err| Box::new(err))?;
+                                
+                                    let msg = object.interact().await?;
 
-                            Ok(Some(format!("you interact with {}; {}", object.definite_description(), msg)))
-                        })
-                    }
-                )))
+                                    Ok(Some(format!("you interact with {}; {}", object.definite_description(), msg)))
+                                })
+                            }
+                        )
+                    },
+                    verb_phrase: VerbPhrase::Transitive(
+                        TransitiveVerbPhrase {
+                            verb: TransitiveVerb::new(ToInteract),
+                            direct_object: world.get_object(&target_handle)
+                                .map(|object| object.definite_description())
+                                .map_err(|err| Box::new(err))?
+                        }
+                    )
+                })
             }
             HumanAction::Inventory => {
                 let message = {
@@ -401,7 +456,7 @@ impl TypedWorldObject for Human {
 
                 self.controller.display_message(message).await?;
 
-                Ok(UpdateFn::no_op())
+                Ok(Action::no_op())
             },
         }
     }

@@ -21,7 +21,7 @@ use crate::{
     worldobject::{
         Error as WorldObjectError,
         TypedWorldObject,
-        fns::update::UpdateFn,
+        fns::update::Action,
         components::inventory::{
             Inventory,
             item::InventoryItem
@@ -64,8 +64,8 @@ impl TypedWorldObject for Sword {
         String::from("sword")
     }
 
-    async fn update(&mut self, _: WorldObjectHandle, _: &World) -> Result<UpdateFn, WorldObjectError> {
-        Ok(UpdateFn::no_op())
+    async fn update(&mut self, _: WorldObjectHandle, _: &World) -> Result<Action, WorldObjectError> {
+        Ok(Action::no_op())
     }
 
     fn dummy(&self) -> Self {

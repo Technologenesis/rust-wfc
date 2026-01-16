@@ -17,8 +17,6 @@ use std::{
     fs::File,
 };
 
-use chrono::Utc;
-
 use logging::{
     basic::BasicLogger,
     channel::LoggingChannel,
@@ -64,10 +62,8 @@ async fn main() {
 
     let out = File::create("world.log").unwrap();
 
-    let mut kwargs = HashMap::new();
-
     let logger = BasicLogger::new(out)
-        .format(String::from("[{level}]: {message}"), kwargs);
+        .format(String::from("{timestamp} [{level}]: {message}"), HashMap::new());
     // logging_channel takes ownership of the logger.
     // it can then be used to create new loggers which will forward messages to the original logger
     // in a thread-safe manner.
@@ -109,6 +105,6 @@ async fn main() {
         io::stdin().read_line(&mut ip_address).unwrap();
         ip_address = ip_address.trim().to_string();
 
-        NetworkHumanControllerClient::connect(ip_address, Human::new(character, TerminalHumanController{})).await.unwrap();
+        NetworkHumanControllerClient::connect(ip_address, character).await.unwrap();
     }
 }

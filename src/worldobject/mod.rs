@@ -23,7 +23,7 @@ use crate::{
     }
 };
 
-use fns::update::UpdateFn;
+use fns::update::Action;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -59,7 +59,7 @@ pub trait TypedWorldObject: Send {
     async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
     async fn send_message(&mut self, message: String) -> Result<(), Error>;
     async fn interact(&mut self) -> Result<String, Error>;
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error>;
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error>;
     async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)>;
 }
 
@@ -85,7 +85,7 @@ impl<T: TypedWorldObject + Send + Sync + 'static> WorldObject for T {
         Box::new(<T as TypedWorldObject>::dummy(self))
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error> {
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error> {
         <T as TypedWorldObject>::update(self, my_handle, world).await
     }
 
@@ -140,7 +140,7 @@ pub trait WorldObject: Send + Sync {
     fn dummy(&self) -> Box<dyn WorldObject>;
 
     // game mechanics; all async to allow interaction with the controller.
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, Error>;
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error>;
     async fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)>;
     async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
     async fn send_message(&mut self, message: String) -> Result<(), Error>;

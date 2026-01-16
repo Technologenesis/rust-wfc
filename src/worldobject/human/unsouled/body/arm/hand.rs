@@ -14,7 +14,7 @@ use crate::{
     worldobject::{
         TypedWorldObject,
         Error as WorldObjectError,
-        UpdateFn
+        fns::update::Action
     },
     world::{
         handle::WorldObjectHandle,
@@ -73,8 +73,8 @@ impl TypedWorldObject for Hand {
         }
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, WorldObjectError> {
-        Ok(UpdateFn::no_op())
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, WorldObjectError> {
+        Ok(Action::no_op())
     }
 
     async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (WorldObjectError, Box<Self>)> {

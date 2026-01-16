@@ -8,7 +8,7 @@ use crate::{
     worldobject::{
         TypedWorldObject,
         Error as WorldObjectError,
-        fns::update::UpdateFn,
+        fns::update::Action,
         components::inventory::{
             Inventory,
             item::{
@@ -65,8 +65,8 @@ impl TypedWorldObject for Rat {
         String::from("rat")
     }
 
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<UpdateFn, WorldObjectError> {
-        Ok(UpdateFn::no_op())
+    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, WorldObjectError> {
+        Ok(Action::no_op())
     }
 
     fn examine(&self) -> String {
