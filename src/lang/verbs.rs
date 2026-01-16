@@ -71,8 +71,8 @@ impl TransitiveVerbTrait for ToAttack {
 #[derive(Copy, Clone)]
 pub struct ToInteract;
 
-impl TransitiveVerbTrait for ToInteract {
-    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
+impl IntransitiveVerbTrait for ToInteract {
+    fn clone_box(&self) -> Box<dyn IntransitiveVerbTrait> {
         Box::new(*self)
     }
 

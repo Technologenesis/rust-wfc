@@ -1,5 +1,7 @@
 pub mod verbs;
 
+use std::fmt::{Display, Formatter, Error};
+
 pub enum GrammaticalPerson {
     FirstPersonSingular,
 
@@ -15,6 +17,7 @@ pub enum GrammaticalPerson {
 pub enum VerbPhrase {
     Transitive(TransitiveVerbPhrase),
     Intransitive(IntransitiveVerb),
+    Prepositional(PrepositionalVerbPhrase),
 }
 
 impl VerbPhrase {
@@ -22,6 +25,7 @@ impl VerbPhrase {
         match self {
             Self::Transitive(verb) => verb.conjugate(person),
             Self::Intransitive(verb) => verb.conjugate(person),
+            Self::Prepositional(verb) => format!("{} {}", verb.main_verb_phrase.conjugate(person), verb.prepositional_phrase.to_string()),
         }
     }
 }
@@ -92,5 +96,23 @@ pub struct TransitiveVerbPhrase {
 impl TransitiveVerbPhrase {
     pub fn conjugate(&self, person: &GrammaticalPerson) -> String {
         format!("{} {}", self.verb.0.conjugate(person), self.direct_object)
+    }
+}
+
+#[derive(Clone)]
+pub struct PrepositionalVerbPhrase {
+    pub main_verb_phrase: Box<VerbPhrase>,
+    pub prepositional_phrase: PrepositionalPhrase,
+}
+
+#[derive(Clone)]
+pub struct PrepositionalPhrase {
+    pub preposition: String,
+    pub object: String,
+}
+
+impl Display for PrepositionalPhrase {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{} {}", self.preposition, self.object)
     }
 }

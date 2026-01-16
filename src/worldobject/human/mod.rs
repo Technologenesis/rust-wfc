@@ -9,38 +9,19 @@ use async_trait::async_trait;
 
 use crate::{
     lang::{
-        VerbPhrase,
-        IntransitiveVerb,
-        TransitiveVerb,
-        TransitiveVerbPhrase,
-        verbs::{
-            ToMove,
-            ToCollect,
-            ToAttack,
-            ToInteract,
-        },
-    },
-    world::{
+        IntransitiveVerb, PrepositionalVerbPhrase, TransitiveVerb, TransitiveVerbPhrase, VerbPhrase, verbs::{
+            ToAttack, ToCollect, ToInteract, ToMove
+        }, PrepositionalPhrase
+    }, quantities::{
+        Quantity, direction::DirectionHorizontal, distance::meters, duration::seconds, force::Force, mass::Mass, speed::Speed
+    }, world::{
         World,
         handle::WorldObjectHandle
-    },
-    quantities::{
-        Quantity,
-        force::Force,
-        mass::Mass,
-        speed::Speed,
-        direction::DirectionHorizontal,
-        duration::seconds,
-        distance::meters
-    },
-    worldobject::{
-        TypedWorldObject,
-        Error as WorldObjectError,
-        fns::update::Action,
-        components::inventory::{
+    }, worldobject::{
+        Error as WorldObjectError, TypedWorldObject, components::inventory::{
             Inventory,
             item::none::NoInventoryItem
-        }
+        }, fns::update::Action
     }
 };
 
@@ -426,12 +407,19 @@ impl TypedWorldObject for Human {
                             }
                         )
                     },
-                    verb_phrase: VerbPhrase::Transitive(
-                        TransitiveVerbPhrase {
-                            verb: TransitiveVerb::new(ToInteract),
-                            direct_object: world.get_object(&target_handle)
-                                .map(|object| object.definite_description())
-                                .map_err(|err| Box::new(err))?
+                    verb_phrase: VerbPhrase::Prepositional(
+                        PrepositionalVerbPhrase {
+                            main_verb_phrase: Box::new(
+                                VerbPhrase::Intransitive(
+                                    IntransitiveVerb::new(ToInteract)
+                                )
+                            ),
+                            prepositional_phrase: PrepositionalPhrase {
+                                preposition: String::from("with"),
+                                object: world.get_object(&target_handle)
+                                    .map(|object| object.definite_description())
+                                    .map_err(|err| Box::new(err))?
+                            }
                         }
                     )
                 })
