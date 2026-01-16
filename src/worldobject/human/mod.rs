@@ -376,7 +376,7 @@ impl TypedWorldObject for Human {
             
                             let msg = object.interact().await?;
 
-                            Ok(Some(format!("you pet {}; {}", object.definite_description(), msg)))
+                            Ok(Some(format!("you interact with {}; {}", object.definite_description(), msg)))
                         })
                     }
                 )))
