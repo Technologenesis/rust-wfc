@@ -3,19 +3,15 @@
 // and is used to communicate with a NetworkHumanControllerClient
 // allowing a human character to be controlled over a network connection.
 
-pub mod error;
-
-use crate::worldobject::human::{
-    controllers,
-    actions,
-};
-
 use async_trait::async_trait;
 
-use crate::logging::Logger;
-use crate::logging::LoggerImpl;
+use crate::{
+    logging::{Logger, LoggerImpl},
+    worldobject::components::controllers::commands::Command
+};
 
 use super::message::NetworkHumanControllerMessage;
+use super::super::Controller;
 
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
@@ -24,12 +20,12 @@ use tokio_util::io::SyncIoBridge;
 // NetworkHumanController is a struct that implements the HumanController trait
 // and is used to communicate with a NetworkHumanControllerClient
 // allowing a human character to be controlled over a network connection.
-pub struct NetworkHumanController {
+pub struct NetworkController {
     logger: Logger<Box<dyn LoggerImpl>>,
     tcp_stream: TcpStream
 }
 
-impl NetworkHumanController {
+impl NetworkController {
     // new creates a new NetworkHumanController from a TCP stream and a logger
     pub fn new(tcp_stream: TcpStream, logger: Logger<impl LoggerImpl + 'static>) -> Self {
         Self {
@@ -41,10 +37,10 @@ impl NetworkHumanController {
 
 #[async_trait]
 // NetworkHumanController implements the HumanController trait
-impl controllers::HumanController for NetworkHumanController {
+impl Controller for NetworkController {
     // prompt_turn sends a prompt via the TCP stream
     // and waits for the client to send an action
-    async fn prompt_turn(&mut self) -> Result<actions::HumanAction, Box<dyn std::error::Error>> {
+    async fn prompt_turn(&mut self) -> Result<Command, Box<dyn std::error::Error>> {
         self.logger.info(String::from("prompting for turn across network controller...")).await;
         let json_content = serde_json::to_vec(&NetworkHumanControllerMessage::PromptTurn).map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())))?;
         self.tcp_stream.write_all(&json_content).await.map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())))?;

@@ -1,7 +1,8 @@
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
 use crate::worldobject::human;
-use crate::worldobject::human::controllers::HumanController;
+
+use super::super::Controller;
 
 use tokio_util::io::SyncIoBridge;
 
@@ -12,7 +13,7 @@ use super::message::NetworkHumanControllerMessage;
 // allowing the underlying controller to remotely control
 // a human character over a network connection.
 pub struct NetworkHumanControllerClient {
-    subcontroller: Box<dyn HumanController>
+    subcontroller: Box<dyn Controller>
 }
 
 impl NetworkHumanControllerClient {
@@ -74,10 +75,10 @@ impl NetworkHumanControllerClient {
     // handle_message handles a message from the remote controller
     // by forwarding it to the underlying local controller
     // and sending the results back to the remote controller.
-    async fn handle_message(message: NetworkHumanControllerMessage, subcontroller: &mut Box<dyn HumanController>, tcp_stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_message(message: NetworkHumanControllerMessage, subcontroller: &mut Box<dyn Controller>, tcp_stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>> {
         match message {
             NetworkHumanControllerMessage::PromptTurn => {
-                let action = subcontroller.prompt_turn()
+                let action= subcontroller.prompt_turn()
                     .await?;
                 let json = serde_json::to_vec(&action)?;
     

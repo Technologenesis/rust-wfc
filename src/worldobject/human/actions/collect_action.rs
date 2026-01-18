@@ -1,70 +1,58 @@
-use std::fmt;
-
-use serde::Serialize;
-use serde::Deserialize;
-
 use crate::{
     lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToCollect},
-    world::{handle::WorldObjectHandle, World},
-    worldobject::{fns::update::Action, WorldObject, human::UnsouledHuman}
+    world::{handle::WorldObjectHandle, World, WorldObjectGetError},
+    worldobject::{
+        fns::update::Action,
+        components::controllers::commands::collect_command::CollectCommand
+    }
 };
 
-#[derive(Serialize, Deserialize)]
-pub struct CollectAction {
-    pub target_handle: WorldObjectHandle
-}
-
 #[derive(Debug)]
-pub enum CollectActionParseError {
-    NoObjectHandleProvided,
-    InvalidObjectHandle(String),
+pub enum CollectCommandToActionError {
+    FailedToGetTargetObject(WorldObjectGetError),
 }
 
-impl fmt::Display for CollectActionParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for CollectCommandToActionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoObjectHandleProvided => write!(f, "no object handle provided"),
-            Self::InvalidObjectHandle(handle_str) => write!(f, "invalid object handle \"{}\"", handle_str)
+            Self::FailedToGetTargetObject(err) => write!(f, "failed to get target object: {}", err),
         }
     }
 }
 
-impl CollectAction {
-    pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, CollectActionParseError> {
-        let target_handle = words.next().ok_or(CollectActionParseError::NoObjectHandleProvided)?;
-        let target_handle = WorldObjectHandle::try_from(target_handle)
-            .map_err(|_| CollectActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
-        Ok(CollectAction { target_handle })
-    }
+impl std::error::Error for CollectCommandToActionError {}
 
-    pub fn to_action(self, my_handle: WorldObjectHandle, target: &dyn WorldObject) -> Action {
-        Action{
-            exec: Box::new(
+pub fn from_command(cmd: CollectCommand, world: &World, my_handle: WorldObjectHandle) -> Result<Action, CollectCommandToActionError> {
+    Ok(Action{
+        exec: {
+            let target_handle = cmd.target_handle.clone();
+            Box::new(
                 move |world: &mut World| {
                     Box::pin(async move {
-                        let location = world.locate_object(&self.target_handle)?;
-                        let object = world.take_object(&self.target_handle)?;
-
+                        let location = world.locate_object(&target_handle)?;
+                        let object = world.take_object(&target_handle)?;
+                    
                         let inventory_item = object.collect().await
                             .or_else(|(err, og_object)| {
-                                world.add_object(self.target_handle.clone(), og_object, location);
+                                world.add_object(target_handle, og_object, location);
                                 Err(err)
                         })?;
-
+                    
                         world.give_item_to(&my_handle, inventory_item)
                             .map_err(|err| Box::new(err))?;
-
+                    
                         Ok(None)
                     })
                 }
-            ),
-            verb_phrase: VerbPhrase::Transitive(
-                TransitiveVerbPhrase {
-                    verb: TransitiveVerb::new(ToCollect),
-                    direct_object: target.definite_description()
-                }
             )
-        }
-    }
+        },
+        verb_phrase: VerbPhrase::Transitive(
+            TransitiveVerbPhrase {
+                verb: TransitiveVerb::new(ToCollect),
+                direct_object: world.get_object(&cmd.target_handle)
+                    .map(|object| object.definite_description())
+                    .map_err(|err| CollectCommandToActionError::FailedToGetTargetObject(err))?
+            }
+        )
+    })
 }
-

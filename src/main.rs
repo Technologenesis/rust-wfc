@@ -18,7 +18,8 @@ use {
     logging::{basic::BasicLogger, channel::LoggingChannel},
     world::{World, coord::WorldCoord},
     worldobject::{WorldObject, sword::Sword, rat::Rat,
-        human::controllers::net::client::NetworkHumanControllerClient},
+        components::controllers::net::client::NetworkHumanControllerClient
+    },
     quantities::{distance::meters, mass::kilograms, speed::meters_per_second}
 };
 

@@ -23,6 +23,12 @@ use super::Inventory;
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct InventoryItemHandle(uuid::Uuid);
 
+impl std::fmt::Display for InventoryItemHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl InventoryItemHandle {
     pub fn new() -> InventoryItemHandle {
         InventoryItemHandle(uuid::Uuid::new_v4())

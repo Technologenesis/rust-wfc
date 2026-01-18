@@ -2,20 +2,24 @@ use std::io;
 
 use crate::{
     worldobject::{
-        components::inventory::{
-            Inventory,
-            item::InventoryItem
+        components::{
+            gender::Gender,
+            body::{
+                Body,
+                head::{Head, Mouth},
+                torso::{Torso, arm::arm, arm::hand::hand},
+                legs::Legs
+            },
+            inventory::{
+                Inventory,
+                item::InventoryItem
+            },
+            controllers::terminal::TerminalHumanController,
         },
         human::{
             Human,
-            controllers::terminal::TerminalHumanController,
             unsouled::{
-                UnsouledHuman,
-                gender::Gender,
-                body::arm::{
-                    arm,
-                    hand::hand
-                }
+                UnsouledHuman
             },
         }
     },
@@ -72,29 +76,42 @@ pub fn create_character() -> Human {
         UnsouledHuman::new(
             name,
             gender,
-            meters_per_second(5.0),
-            Some(arm(
-                kilograms(10.0),
-                meters(1.0),
-                newtons(1000.0),
-                Some(
-                    hand(
-                        kilograms(1.0),
-                        None::<Box<dyn InventoryItem>>
-                    )
-                )
-            )),
-            Some(arm(
-                kilograms(10.0),
-                meters(1.0),
-                newtons(1000.0),
-                Some(hand(
-                    kilograms(1.0),
-                    None::<Box<dyn InventoryItem>>
-                )),
-            )),
+            Body{
+                base_mass: kilograms(100.0),
+                head: Head{
+                    base_mass: kilograms(7.0),
+                    mouth: Mouth{
+                        base_mass: kilograms(1.0),
+                        teeth: vec![],
+                    },
+                },
+                torso: Torso{
+                    base_mass: kilograms(20.0),
+                    left_arm: arm(
+                        kilograms(10.0),
+                        meters(1.0),
+                        newtons(1000.0),
+                        Some(hand(
+                            kilograms(1.0),
+                            None::<Box<dyn InventoryItem>>
+                        ))
+                    ),
+                    right_arm: arm(
+                        kilograms(10.0),
+                        meters(1.0),
+                        newtons(1000.0),
+                        Some(hand(
+                            kilograms(1.0),
+                            None::<Box<dyn InventoryItem>>
+                        ))
+                    ),
+                },
+                legs: Legs{
+                    base_mass: kilograms(10.0),
+                    speed: meters_per_second(5.0),
+                },
+            },
             DirectionHorizontal::Right,
-            kilograms(0.0),
             Inventory::new(),
         ),
         TerminalHumanController{}

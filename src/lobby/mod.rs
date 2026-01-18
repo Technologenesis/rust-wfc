@@ -18,21 +18,18 @@ use crate::{
         LoggerImpl,
     },
     worldobject::{
+        components::controllers::net::controller::NetworkController,
         WorldObject,
         human::{
             unsouled::UnsouledHuman,
-            Human,
-            controllers::net::controller::NetworkHumanController
+            Human
         }
     },
     world::{
         World,
         coord::WorldCoord
     },
-    quantities::{
-        distance::meters,
-        direction::DirectionHorizontal
-    }
+    quantities::distance::meters
 };
 
 #[derive(Debug)]
@@ -140,7 +137,7 @@ impl Lobby {
 
         if let Ok(unsouled) = UnsouledHuman::try_from(&next_json) {
             // TODO: Create proper network controller
-            if let Err(err) = self.add_character(Human::new(unsouled, NetworkHumanController::new(stream, (self.new_controller_logger)()))) {
+            if let Err(err) = self.add_character(Human::new(unsouled, NetworkController::new(stream, (self.new_controller_logger)()))) {
                 println!("Error adding character: {}", err);
             }
         } else if let Err(err) = UnsouledHuman::try_from(&next_json) {

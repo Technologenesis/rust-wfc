@@ -83,3 +83,51 @@ impl IntransitiveVerbTrait for ToInteract {
         }
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct ToExamine;
+
+impl TransitiveVerbTrait for ToExamine {
+    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("examines"),
+            _ => String::from("examine"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ToCircumspect;
+
+impl IntransitiveVerbTrait for ToCircumspect {
+    fn clone_box(&self) -> Box<dyn IntransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("circumspects"),
+            _ => String::from("circumspect"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ToCheck;
+
+impl IntransitiveVerbTrait for ToCheck {
+    fn clone_box(&self) -> Box<dyn IntransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("checks"),
+            _ => String::from("check"),
+        }
+    }
+}

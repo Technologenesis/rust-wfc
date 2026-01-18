@@ -1,35 +1,50 @@
-use std::fmt;
+use futures::future::BoxFuture;
 
-use serde::Serialize;
-use serde::Deserialize;
-
-use crate::world::handle::WorldObjectHandle;
-
-#[derive(Serialize, Deserialize)]
-pub struct ExamineAction {
-    pub target_handle: WorldObjectHandle
-}
+use crate::{
+    lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToExamine},
+    world::{World, WorldObjectGetError},
+    worldobject::{
+        Error as WorldObjectError,
+        components::controllers::commands::examine_command::ExamineCommand,
+        fns::update::Action
+    }
+};
 
 #[derive(Debug)]
-pub enum ExamineActionParseError {
-    NoObjectHandleProvided,
-    InvalidObjectHandle(String),
+pub enum ExamineCommandToActionError {
+    FailedToGetTargetObject(WorldObjectGetError),
 }
 
-impl fmt::Display for ExamineActionParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for ExamineCommandToActionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoObjectHandleProvided => write!(f, "no object handle provided"),
-            Self::InvalidObjectHandle(handle_str) => write!(f, "invalid object handle \"{}\"", handle_str)
+            Self::FailedToGetTargetObject(err) => write!(f, "failed to get target object: {}", err),
         }
     }
 }
 
-impl ExamineAction {
-    pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, ExamineActionParseError> {
-        let target_handle = words.next().ok_or(ExamineActionParseError::NoObjectHandleProvided)?;
-        let target_handle = WorldObjectHandle::try_from(target_handle)
-            .map_err(|_| ExamineActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
-        Ok(ExamineAction { target_handle })
-    }
+impl std::error::Error for ExamineCommandToActionError {}
+
+pub fn from_command(cmd: ExamineCommand, world: &World) -> Result<Action, ExamineCommandToActionError> {
+    let target_description = world.get_object(&cmd.target_handle)
+        .map(|object| object.definite_description())
+        .map_err(|err| ExamineCommandToActionError::FailedToGetTargetObject(err))?;
+
+    Ok(Action{
+        exec: Box::new(
+            move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
+                Box::pin(async move {
+                    let object = world.get_object(&cmd.target_handle)?;
+                    let msg = format!("you see {}", object.examine());
+                    Ok(Some(msg))
+                })
+            }
+        ),
+        verb_phrase: VerbPhrase::Transitive(
+            TransitiveVerbPhrase {
+                verb: TransitiveVerb::new(ToExamine),
+                direct_object: target_description
+            }
+        )
+    })
 }

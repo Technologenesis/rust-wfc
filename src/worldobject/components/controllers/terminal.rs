@@ -1,23 +1,19 @@
-use std::future::Future;
-use std::pin::Pin;
 use async_trait::async_trait;
 
-use crate::worldobject::human::{
-    controllers,
-    actions,
-};
-use crate::world;
+use crate::worldobject::components::controllers::commands::Command;
+
+use super::Controller;
 
 pub struct TerminalHumanController {}
 
 #[async_trait]
-impl controllers::HumanController for TerminalHumanController {
-    async fn prompt_turn(&mut self) -> Result<actions::HumanAction, Box<dyn std::error::Error>> {
+impl Controller for TerminalHumanController {
+    async fn prompt_turn(&mut self) -> Result<Command, Box<dyn std::error::Error>> {
         println!("Enter your action:");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
         
-        let action = actions::HumanAction::try_from(input.as_str())?;
+        let action = Command::try_from(input.as_str())?;
         Ok(action)
     }
 

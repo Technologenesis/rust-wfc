@@ -2,12 +2,10 @@ pub mod coord;
 pub mod handle;
 
 use std::collections::{HashMap};
-use std::vec;
 use std::fmt;
 use std::error;
 
 use crate::{
-    worldobject::fns::update::Action,
     lang::{GrammaticalPerson, TransitiveVerb, verbs::ToDo, TransitiveVerbPhrase, VerbPhrase},
     worldobject::{WorldObject, fns::Error as WorldObjectError, components::inventory::item::InventoryItem},
     quantities::{Quantity, distance::Distance, direction::DirectionHorizontalOrVertical},
@@ -204,6 +202,10 @@ impl World {
     }
 
     async fn update_object(&mut self, handle: &WorldObjectHandle, object_description: String) -> Result<(), WorldUpdateError> {
+        if !self.objects.contains_key(handle) {
+            return Ok(());
+        }
+        
         // broadcast the start of the turn
         _ = self.broadcast_by_recipient(|recipient_handle| {
             if recipient_handle == *handle {

@@ -1,48 +1,55 @@
-use crate::quantities;
-use crate::quantities::distance;
-use crate::quantities::direction;
+use futures::future::BoxFuture;
 
-use serde::Serialize;
-use serde::Deserialize;
-
-use std::fmt;
+use crate::{
+    lang::{VerbPhrase, IntransitiveVerb, verbs::ToMove},
+    world::{World, handle::WorldObjectHandle},
+    worldobject::{
+        Error as WorldObjectError,
+        components::controllers::commands::move_command::MoveCommand,
+        human::unsouled::UnsouledHuman,
+        fns::update::Action
+    },
+    quantities::{
+        duration::seconds,
+        distance::meters
+    }
+};
 
 #[derive(Debug)]
-pub enum MoveActionParseError {
-    NoDirectionProvided,
-    InvalidDirection(String),
-    NoDistanceProvided,
-    InvalidDistance(String),
+pub enum MoveError {
+    DistanceTooGreat,
 }
 
-impl fmt::Display for MoveActionParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for MoveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoDirectionProvided => write!(f, "no direction provided"),
-            Self::InvalidDirection(dir_str) => write!(f, "invalid direction \"{}\"", dir_str),
-            Self::NoDistanceProvided => write!(f, "no distance provided"),
-            Self::InvalidDistance(dist_str) => write!(f, "invalid distance \"{}\"", dist_str)
+            Self::DistanceTooGreat => write!(f, "distance too great"),
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MoveAction {
-    pub direction: direction::DirectionHorizontalOrVertical,
-    pub distance: quantities::Quantity<distance::Distance>
-}
+impl std::error::Error for MoveError {}
 
-impl MoveAction {
-    pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, MoveActionParseError> {
-        let direction = words.next().ok_or(MoveActionParseError::NoDirectionProvided)?;
-        let direction = direction::DirectionHorizontalOrVertical::try_from(direction)
-            .map_err(|_| MoveActionParseError::InvalidDirection(direction.to_string()))?;
+pub fn from_command(cmd: MoveCommand, my_handle: WorldObjectHandle, me: UnsouledHuman) -> Action {
+    Action{
+        exec: Box::new(
+            move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
+                Box::pin(async move {
+                    if cmd.distance > (seconds(1.0) * me.body.legs.speed.commute()).associate_left().commute().cancel() {
+                        return Err(Box::new(MoveError::DistanceTooGreat).into());
+                    }
 
-        let distance_meters_str = words.next().ok_or(MoveActionParseError::NoDistanceProvided)?;
+                    world.move_object(&my_handle, &cmd.direction, &cmd.distance)
+                        .map_err(|err| Box::new(err))?;
 
-        let distance_meters = distance_meters_str.parse::<f64>()
-            .map_err(|_| MoveActionParseError::InvalidDistance(distance_meters_str.to_string()))?;
+                    let dist_f64 = (&cmd.distance / &meters(1.0)).cancel().0.0;
 
-        Ok(MoveAction { direction, distance: distance::meters(distance_meters) })
+                    Ok(Some(format!("you move {} meters {}", dist_f64, cmd.direction)))
+                })
+            }
+        ),
+        verb_phrase: VerbPhrase::Intransitive(
+            IntransitiveVerb::new(ToMove)
+        )
     }
 }

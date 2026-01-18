@@ -1,96 +1,74 @@
-use std::fmt;
-
-use serde::Serialize;
-use serde::Deserialize;
-
 use crate::{
     lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToAttack},
-    worldobject::{fns::update::Action, WorldObject, human::unsouled::UnsouledHuman},
-    world::{World, handle::WorldObjectHandle},
-    quantities::direction::{DirectionHorizontal, InvalidHorizontalDirectionError}
+    worldobject::{fns::update::Action, human::unsouled::UnsouledHuman,
+        components::controllers::commands::attack_command::AttackCommand
+    },
+    world::{World, WorldObjectGetError},
+    quantities::direction::{DirectionHorizontal}
 };
 
-#[derive(Serialize, Deserialize)]
-pub struct AttackAction {
-    pub target_handle: WorldObjectHandle,
-    pub left_or_right_arm: Option<DirectionHorizontal>
+#[derive(Debug)]
+pub enum AttackCommandToActionError {
+    FailedToGetTargetObject(WorldObjectGetError),
 }
+
+impl std::fmt::Display for AttackCommandToActionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FailedToGetTargetObject(err) => write!(f, "failed to get target object: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for AttackCommandToActionError {}
 
 #[derive(Debug)]
 pub enum AttackError {
-    NoArmProvided,
+    NoCapableBodyParts,
 }
 
 impl std::fmt::Display for AttackError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoArmProvided => write!(f, "no arm provided"),
+            Self::NoCapableBodyParts => write!(f, "none of your body parts are capable of attacking"),
         }
     }
 }
 
 impl std::error::Error for AttackError {}
 
-#[derive(Debug)]
-pub enum AttackActionParseError {
-    NoObjectHandleProvided,
-    InvalidObjectHandle(String),
-    InvalidHandedness(InvalidHorizontalDirectionError),
-}
+pub fn from_command(cmd: AttackCommand, world: &World, me: UnsouledHuman) -> Result<Action, AttackCommandToActionError> {
+    let target_description = world.get_object(&cmd.target_handle)
+        .map(|object| object.definite_description())
+        .map_err(|err| AttackCommandToActionError::FailedToGetTargetObject(err))?;
 
-impl fmt::Display for AttackActionParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NoObjectHandleProvided => write!(f, "no object handle provided"),
-            Self::InvalidObjectHandle(handle_str) => write!(f, "invalid object handle \"{}\"", handle_str),
-            Self::InvalidHandedness(err) => write!(f, "invalid handedness: {}", err)
-        }
-    }
-}
-
-impl AttackAction {
-    pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, AttackActionParseError> {
-        let target_handle = words.next().ok_or(AttackActionParseError::NoObjectHandleProvided)?;
-        let target_handle = WorldObjectHandle::try_from(target_handle)
-            .map_err(|_| AttackActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
-
-        let left_or_right_arm = words.next().map(
-            |left_or_right_arm| DirectionHorizontal::try_from(left_or_right_arm)
-                .map_err(|err| AttackActionParseError::InvalidHandedness(err))
-        ).transpose()?;
-
-        Ok(AttackAction { target_handle, left_or_right_arm })
-    }
-
-    pub fn to_action(self, me: UnsouledHuman, target: &dyn WorldObject) -> Action {
-        Action{
-            exec: Box::new(
-                move |world: &mut World| {
-                    Box::pin(async move {
-                        let arm = match self.left_or_right_arm.as_ref().unwrap_or(&me.dominant_arm) {
-                            DirectionHorizontal::Left => &me.arm_left,
-                            DirectionHorizontal::Right => &me.arm_right,
-                        }.as_ref().ok_or(AttackError::NoArmProvided)?;
+    Ok(Action{
+        exec: Box::new(
+            move |world: &mut World| {
+                Box::pin(async move {
+                    let arm = match me.dominant_arm {
+                        DirectionHorizontal::Left => &me.body.torso.left_arm,
+                        DirectionHorizontal::Right => &me.body.torso.right_arm,
+                    };
+                
+                    let punch_force = arm.punch_force.clone();
                     
-                        let punch_force = arm.punch_force.clone();
-                        
-                        let object = world.get_object_mut(&self.target_handle)
-                            .map_err(|err| Box::new(err))?;
-                    
-                        let msg = object.apply_force(&punch_force).await
-                            .unwrap_or_else(|err| format!("failed to apply force: {}", err));
-                    
-                        Ok(Some(msg))
-                    })
-                }
-            ),
-            verb_phrase: VerbPhrase::Transitive(
-                TransitiveVerbPhrase {
-                    verb: TransitiveVerb::new(ToAttack),
-                    direct_object: target.definite_description()
-                }
-            )
-        }
-    }
+                    let object = world.get_object_mut(&cmd.target_handle)
+                        .map_err(|err| Box::new(err))?;
+                
+                    let msg = object.apply_force(&punch_force).await
+                        .unwrap_or_else(|err| format!("failed to apply force: {}", err));
+                
+                    Ok(Some(msg))
+                })
+            }
+        ),
+        verb_phrase: VerbPhrase::Transitive(
+            TransitiveVerbPhrase {
+                verb: TransitiveVerb::new(ToAttack),
+                direct_object: target_description
+            }
+        )
+    })
 }
 
