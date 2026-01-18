@@ -5,7 +5,7 @@ use crate::{
     lang::TransitiveVerbPhrase,
     lang::TransitiveVerb,
     lang::verbs::ToDo,
-    world::World
+    world::{World, handle::WorldObjectHandle}
 };
 
 use super::Error;

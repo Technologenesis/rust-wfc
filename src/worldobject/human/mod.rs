@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use crate::{
     lang::{
         IntransitiveVerb, PrepositionalVerbPhrase, TransitiveVerb, TransitiveVerbPhrase, VerbPhrase, verbs::{
-            ToAttack, ToCollect, ToInteract, ToMove
+            ToInteract, ToMove
         }, PrepositionalPhrase
     }, quantities::{
         Quantity, direction::DirectionHorizontal, distance::meters, duration::seconds, force::Force, mass::Mass, speed::Speed
@@ -33,6 +33,7 @@ use unsouled::{
 
 use actions::{
     HumanAction,
+    attack_action::AttackError,
     interact_action::InteractAction
 };
 
@@ -195,21 +196,6 @@ impl std::fmt::Display for MoveError {
 
 impl std::error::Error for MoveError {}
 
-#[derive(Debug)]
-pub enum AttackError {
-    NoArmProvided,
-}
-
-impl std::fmt::Display for AttackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NoArmProvided => write!(f, "no arm provided"),
-        }
-    }
-}
-
-impl std::error::Error for AttackError {}
-
 #[async_trait]
 impl TypedWorldObject for Human {
     type Dummy = UnsouledHuman;
@@ -299,40 +285,12 @@ impl TypedWorldObject for Human {
                 
                 Ok(Action::no_op())
             },
-            actions::HumanAction::Collect(actions::collect_action::CollectAction {
-                target_handle
-            }) => Ok(Action{
-                exec: {
-                    let target_handle = target_handle.clone();
-                    Box::new(|world: &mut World| {
-                        Box::pin(async move {
-                            let location = world.locate_object(&target_handle)?;
-                            let object = world.take_object(&target_handle)?;
+            actions::HumanAction::Collect(collect_action) => {
+                let target = world.get_object(&collect_action.target_handle)
+                    .map_err(|err| Box::new(err))?;
 
-                            let object_desc = object.definite_description();
-
-                            let inventory_item = object.collect().await
-                                .or_else(|(err, og_object)| {
-                                    world.add_object(target_handle.clone(), og_object, location);
-                                    Err(err)
-                            })?;
-
-                            world.give_item_to(&my_handle, inventory_item)
-                                .map_err(|err| Box::new(err))?;
-
-                            Ok(Some(format!("you collect {}", object_desc)))
-                        })
-                    })
-                },
-                verb_phrase: VerbPhrase::Transitive(
-                    TransitiveVerbPhrase {
-                        verb: TransitiveVerb::new(ToCollect),
-                        direct_object: world.get_object(&target_handle)
-                            .map(|object| object.definite_description())
-                            .map_err(|err| Box::new(err))?
-                    }
-                )
-            }),
+                Ok(collect_action.to_action(my_handle, target))
+            },
             actions::HumanAction::Circumspect => {
                 let descs = world.objects.iter()
                     .map(|(handle, (_, object))| format!("- {}: {}", handle, object.examine()))
@@ -348,45 +306,11 @@ impl TypedWorldObject for Human {
                 
                 Ok(Action::no_op())
             },
-            actions::HumanAction::Attack(actions::attack_action::AttackAction {
-                left_or_right_arm,
-                target_handle
-            }) => {
-                let arm = match left_or_right_arm.as_ref().unwrap_or(&self.unsouled.dominant_arm) {
-                    DirectionHorizontal::Left => &self.unsouled.arm_left,
-                    DirectionHorizontal::Right => &self.unsouled.arm_right,
-                }.as_ref().ok_or(HumanUpdateError::AttackError(AttackError::NoArmProvided))?;
+            actions::HumanAction::Attack(attack_action) => {
+                let target = world.get_object(&attack_action.target_handle)
+                    .map_err(|err| Box::new(err))?;
 
-                let punch_force = arm.punch_force.clone();
-
-                Ok(Action{
-                    exec: {
-                        let target_handle = target_handle.clone();
-                        Box::new(
-                            move |world: &mut World| {
-                                Box::pin(async move {
-                                    let object = world.get_object_mut(&target_handle)
-                                        .map_err(|err| Box::new(err))?;
-
-                                    let object_desc = object.definite_description();
-
-                                    let msg = object.apply_force(&punch_force).await
-                                        .unwrap_or_else(|err| format!("failed to apply force: {}", err));
-
-                                    Ok(Some(format!("you punch {}; {}", object_desc, msg)))
-                                })
-                            }
-                        )
-                    },
-                    verb_phrase: VerbPhrase::Transitive(
-                        TransitiveVerbPhrase {
-                            verb: TransitiveVerb::new(ToAttack),
-                            direct_object: world.get_object(&target_handle)
-                                .map(|object| object.definite_description())
-                                .map_err(|err| Box::new(err))?
-                        }
-                    )
-                })
+                Ok(attack_action.to_action(self.dummy(), target))
             },
             HumanAction::Interact(InteractAction{
                 target_handle
@@ -402,7 +326,7 @@ impl TypedWorldObject for Human {
                                 
                                     let msg = object.interact().await?;
 
-                                    Ok(Some(format!("you interact with {}; {}", object.definite_description(), msg)))
+                                    Ok(Some(msg))
                                 })
                             }
                         )

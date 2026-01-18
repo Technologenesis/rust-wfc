@@ -6,29 +6,12 @@ use std::vec;
 use std::fmt;
 use std::error;
 
-use crate::lang::{TransitiveVerbPhrase, VerbPhrase};
 use crate::{
-    lang::{
-        GrammaticalPerson,
-        TransitiveVerb,
-        verbs::ToDo,
-    },
-    worldobject::{
-        WorldObject,
-        fns::Error as WorldObjectError,
-        components::inventory::item::InventoryItem
-    },
-    quantities::{
-        Quantity,
-        distance::Distance,
-        direction::DirectionHorizontalOrVertical
-    },
-    logging::{
-        Logger,
-        LoggerImpl,
-        DynLogger,
-        noop::NoopLogger
-    }
+    worldobject::fns::update::Action,
+    lang::{GrammaticalPerson, TransitiveVerb, verbs::ToDo, TransitiveVerbPhrase, VerbPhrase},
+    worldobject::{WorldObject, fns::Error as WorldObjectError, components::inventory::item::InventoryItem},
+    quantities::{Quantity, distance::Distance, direction::DirectionHorizontalOrVertical},
+    logging::{Logger, LoggerImpl, DynLogger, noop::NoopLogger}
 };
 
 use handle::WorldObjectHandle;
@@ -102,16 +85,14 @@ impl error::Error for WorldObjectSendMessageError {}
 #[derive(Debug)]
 pub enum WorldGiveItemError {
     NoSuchObject(WorldObjectHandle),
-    CoultNotGetInventory(WorldObjectHandle, WorldObjectError),
-    CouldNotGiveItem(WorldObjectHandle, WorldObjectError)
+    CoultNotGetInventory(WorldObjectHandle, WorldObjectError)
 }
 
 impl fmt::Display for WorldGiveItemError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoSuchObject(handle) => write!(f, "no object found for handle \"{}\"", handle),
-            Self::CoultNotGetInventory(handle, err) => write!(f, "could not get inventory for object \"{}\": {}", handle, err),
-            Self::CouldNotGiveItem(handle, err) => write!(f, "could not give item to object \"{}\": {}", handle, err)
+            Self::CoultNotGetInventory(handle, err) => write!(f, "could not get inventory for object \"{}\": {}", handle, err)
         }
     }
 }
@@ -196,118 +177,116 @@ impl World {
         Ok(())
     }
 
+    async fn broadcast(&mut self, message: String) -> Result<(), WorldObjectSendMessageError> {
+        self.broadcast_by_recipient(|handle| message.clone()).await
+    }
+
+    async fn broadcast_by_recipient(&mut self, message_by_recipient: impl Fn(WorldObjectHandle) -> String) -> Result<(), WorldObjectSendMessageError> {
+        for (handle, (_, object)) in self.objects.iter_mut() {
+            _ = object.send_message(message_by_recipient(handle.clone())).await;
+        }
+        Ok(())
+    }
+
+    fn second_and_third_person_messages(third_person_subject: String, update_verb_phrase: VerbPhrase) -> (String, String) {
+        let second_person_message = format!(
+            "you {}",
+            update_verb_phrase.conjugate(&GrammaticalPerson::SecondPersonSingular)
+        );
+
+        let third_person_message = format!(
+            "{} {}",
+            third_person_subject,
+            update_verb_phrase.conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
+        );
+
+        (second_person_message, third_person_message)
+    }
+
+    async fn update_object(&mut self, handle: &WorldObjectHandle, object_description: String) -> Result<(), WorldUpdateError> {
+        // broadcast the start of the turn
+        _ = self.broadcast_by_recipient(|recipient_handle| {
+            if recipient_handle == *handle {
+                String::from("It is your turn to act")
+            } else {
+                format!("It is {}'s turn to act", object_description)
+            }
+        }).await;
+    
+        let action_res = {
+            // create a dummy world to avoid double-borrowing the acting object
+            let world_dummy = self.dummy();
+            // try getting the object; if we succeed, call the object's update method.
+            // This borrows the object from the world, necessitating the dummy world
+            match self.get_object_mut(&handle) {
+                Ok(object) => object.update(handle.clone(), &world_dummy).await,
+                Err(err) => {
+                    let b: Box<dyn std::error::Error> = Box::new(err);
+                    Err(b)
+                }
+            }
+        };
+    
+        let (second_person_message, third_person_message) = match action_res {
+            Ok(action) => {
+                let object_description = object_description.clone();
+                async {
+                    let action_verb_phrase = action.verb_phrase.clone();
+                    
+                    let message = action.call(self).await?;
+                    
+                    let (mut second_person_message, third_person_message) = Self::second_and_third_person_messages(
+                        object_description,
+                        action_verb_phrase
+                    );
+                
+                    if let Some(message) = message {
+                        second_person_message = format!("{}; {}", second_person_message, message);
+                    }
+                
+                    Ok((second_person_message, third_person_message))
+                }.await
+            },
+            Err(err) => Err(err)
+        }.unwrap_or_else(
+            |err| {
+                let (second_person_message, third_person_message) = Self::second_and_third_person_messages(
+                    object_description,
+                    VerbPhrase::Transitive(
+                        TransitiveVerbPhrase {
+                            verb: TransitiveVerb::new(ToDo),
+                            direct_object: String::from("nothing"),
+                        }
+                    )
+                );
+                (format!("{}; {}", err, second_person_message), third_person_message)
+            }
+        );
+    
+        // broadcast the results of the action to all objects in the world
+        self.broadcast_by_recipient(|recipient_handle| {
+            if recipient_handle == *handle {
+                second_person_message.clone()
+            } else {
+                third_person_message.clone()
+            }
+        }).await.map_err(|err| WorldUpdateError::ObjectUpdateFailed(handle.clone(), Box::new(err)))
+    }
+
     pub async fn update(&mut self) -> Result<(), WorldUpdateError> {
         self.logger.info(String::from("Updating world...")).await;
 
-        let mut update_fns = vec!();
+        let handles = self.objects.iter().map(
+            |(handle, obj)|
+            (handle.clone(), obj.1.definite_description())
+        ).collect::<Vec<_>>();
 
-        let world_dummy = self.dummy();
-        for (handle, (_, object)) in self.objects.iter_mut() {
-            self.logger.info(format!("Prompting object with handle {} for turn...", handle)).await;
-            update_fns.push((handle.clone(), object.update(handle.clone(), &world_dummy).await));
-        }
-
-        {
-            let mut handles = Vec::new();
-            for handle in self.objects.keys() {
-                handles.push(handle.clone());
-            }
-            
-            for handle in handles {
-                _ = self.send_message_to(&handle, "\nAll actions submitted!\n".to_string()).await;
-            }
-        };
-
-
-        let descriptions_by_handle = self.objects.iter().map(|(handle, (_, object))| (handle.clone(), object.definite_description())).collect::<HashMap<_, _>>();
-
-        for (handle, update_fn_res) in update_fns {
-            let (third_person_message, second_person_message) = match update_fn_res {
-                Ok(update_fn) => {
-                    self.logger.info(format!("calling update function for object with handle {}...", handle)).await;
-
-                    let update_verb_phrase = update_fn.verb_phrase.clone();
-                    let update_res = update_fn.call(self).await;
-
-                    match update_res {
-                        Ok(message_opt) => {
-                            let third_person_message = format!(
-                                "{} {}",
-                                descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
-                                update_verb_phrase.conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
-                            );
-
-                            let second_person_message = message_opt.clone().unwrap_or(format!(
-                                "{} {}",
-                                "You",
-                                update_verb_phrase.conjugate(&GrammaticalPerson::SecondPersonSingular)
-                            ));
-
-                            (third_person_message, second_person_message)
-                        }
-                        Err(err) => {
-                            self.logger.error(format!("Failed to run update function for object with handle {}: {}", handle, err)).await;
-                            let third_person_message = format!(
-                                "{} {}",
-                                descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
-                                VerbPhrase::Transitive(
-                                    TransitiveVerbPhrase {
-                                        verb: TransitiveVerb::new(ToDo),
-                                        direct_object: String::from("nothing"),
-                                    }
-                                ).conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
-                            );
-
-                            let second_person_message = format!(
-                                "{}; you {}",
-                                err.to_string(),
-                                VerbPhrase::Transitive(
-                                    TransitiveVerbPhrase {
-                                        verb: TransitiveVerb::new(ToDo),
-                                        direct_object: String::from("nothing"),
-                                    }
-                                ).conjugate(&GrammaticalPerson::SecondPersonSingular)
-                            );
-
-                            (third_person_message, second_person_message)
-                        }
-                    }
-                },
-                Err(err) => {
-                    self.logger.error(format!("Failed to prompt object with handle {} for turn: {}", handle, err)).await;
-
-                    let third_person_message = format!(
-                        "{} {}",
-                        descriptions_by_handle.get(&handle).unwrap_or(&String::from("unknown object")),
-                        VerbPhrase::Transitive(
-                            TransitiveVerbPhrase {
-                                verb: TransitiveVerb::new(ToDo),
-                                direct_object: String::from("nothing"),
-                            }
-                        ).conjugate(&GrammaticalPerson::ThirdPersonSingularGendered)
-                    );
-
-                    let second_person_message = format!(
-                        "you issued an invalid command; you {}",
-                        VerbPhrase::Transitive(
-                            TransitiveVerbPhrase {
-                                verb: TransitiveVerb::new(ToDo),
-                                direct_object: String::from("nothing"),
-                            }
-                        ).conjugate(&GrammaticalPerson::SecondPersonSingular)
-                    );
-
-                    (third_person_message, second_person_message)
-                }
+        for (handle, object_description) in handles {
+            match self.update_object(&handle, object_description).await {
+                Ok(_) => self.logger.info(format!("Updated object with handle {}...", handle)).await,
+                Err(err) => self.logger.error(format!("Failed to update object with handle {}: {}", handle, err)).await,
             };
-
-            for (message_recipient_handle, object) in &mut self.objects {
-                if message_recipient_handle == &handle {
-                    _ = object.1.send_message(second_person_message.clone()).await;
-                } else {
-                    _ = object.1.send_message(third_person_message.clone()).await;
-                }
-            }
+            let _ = self.broadcast(String::from("\n")).await;
         }
 
         Ok(())

@@ -1,19 +1,11 @@
 pub mod gender;
 pub mod body;
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::{
-    quantities::{
-        self,
-        Quantity,
-        mass::Mass,
-        speed::Speed,
-        direction::DirectionHorizontal
-    },
-    worldobject::components::inventory::{
-        Inventory,
-    }
+    quantities::{self, Quantity, mass::Mass, speed::Speed, direction::DirectionHorizontal},
+    worldobject::components::inventory::{Inventory}
 };
 
 use gender::Gender;

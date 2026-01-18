@@ -88,6 +88,7 @@ pub async fn host(
         println!("Adding character to world: {}", character.name());
         world.add_object(character.name(), character, WorldCoord::new(meters(0.0), meters(0.0)));
     }
+    println!("\n");
 
     loop {
         match world.update().await {

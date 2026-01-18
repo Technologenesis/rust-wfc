@@ -3,7 +3,11 @@ use std::fmt;
 use serde::Serialize;
 use serde::Deserialize;
 
-use crate::world::handle::WorldObjectHandle;
+use crate::{
+    lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToCollect},
+    world::{handle::WorldObjectHandle, World},
+    worldobject::{fns::update::Action, WorldObject, human::UnsouledHuman}
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct CollectAction {
@@ -32,4 +36,35 @@ impl CollectAction {
             .map_err(|_| CollectActionParseError::InvalidObjectHandle(target_handle.to_string()))?;
         Ok(CollectAction { target_handle })
     }
+
+    pub fn to_action(self, my_handle: WorldObjectHandle, target: &dyn WorldObject) -> Action {
+        Action{
+            exec: Box::new(
+                move |world: &mut World| {
+                    Box::pin(async move {
+                        let location = world.locate_object(&self.target_handle)?;
+                        let object = world.take_object(&self.target_handle)?;
+
+                        let inventory_item = object.collect().await
+                            .or_else(|(err, og_object)| {
+                                world.add_object(self.target_handle.clone(), og_object, location);
+                                Err(err)
+                        })?;
+
+                        world.give_item_to(&my_handle, inventory_item)
+                            .map_err(|err| Box::new(err))?;
+
+                        Ok(None)
+                    })
+                }
+            ),
+            verb_phrase: VerbPhrase::Transitive(
+                TransitiveVerbPhrase {
+                    verb: TransitiveVerb::new(ToCollect),
+                    direct_object: target.definite_description()
+                }
+            )
+        }
+    }
 }
+
