@@ -9,7 +9,7 @@ use async_trait::async_trait;
 
 use crate::{
     lang::{
-        IntransitiveVerb, PrepositionalVerbPhrase, TransitiveVerb, TransitiveVerbPhrase, VerbPhrase, verbs::{
+        IntransitiveVerb, PrepositionalVerbPhrase, VerbPhrase, verbs::{
             ToInteract, ToMove
         }, PrepositionalPhrase
     }, quantities::{
