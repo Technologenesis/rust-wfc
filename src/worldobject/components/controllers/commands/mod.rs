@@ -3,6 +3,8 @@ pub mod interact_action;
 pub mod collect_command;
 pub mod attack_command;
 pub mod examine_command;
+pub mod wield_command;
+pub mod use_command;
 
 use serde::{Serialize, Deserialize};
 
@@ -13,8 +15,10 @@ pub enum Command {
     Collect(collect_command::CollectCommand),
     Attack(attack_command::AttackCommand),
     Examine(examine_command::ExamineCommand),
+    Wield(wield_command::WieldCommand),
     Circumspect,
     Inventory,
+    Use(use_command::UseCommand),
 }
 
 #[derive(Debug)]
@@ -26,6 +30,8 @@ pub enum HumanActionParseError {
     CollectActionParseError(collect_command::CollectCommandParseError),
     AttackActionParseError(attack_command::AttackActionParseError),
     ExamineActionParseError(examine_command::ExamineCommandParseError),
+    WieldActionParseError(wield_command::WieldCommandParseError),
+    UseActionParseError(use_command::UseCommandParseError),
 }
 
 impl std::fmt::Display for HumanActionParseError {
@@ -37,7 +43,9 @@ impl std::fmt::Display for HumanActionParseError {
             Self::CollectActionParseError(collect_err) => write!(f, "failed to parse collect action: {}", collect_err),
             Self::AttackActionParseError(attack_err) => write!(f, "failed to parse attack action: {}", attack_err),
             Self::ExamineActionParseError(examine_err) => write!(f, "failed to parse examine action: {}", examine_err),
-            Self::InteractActionParseError(interact_err) => write!(f, "failed to parse interact action: {}", interact_err)
+            Self::InteractActionParseError(interact_err) => write!(f, "failed to parse interact action: {}", interact_err),
+            Self::WieldActionParseError(wield_err) => write!(f, "failed to parse wield action: {}", wield_err),
+            Self::UseActionParseError(use_err) => write!(f, "failed to parse use action: {}", use_err),
         }
     }
 }
@@ -65,8 +73,14 @@ impl Command {
                 "examine" => examine_command::ExamineCommand::parse(words)
                     .map(Command::Examine)
                     .map_err(HumanActionParseError::ExamineActionParseError),
+                "wield" => wield_command::WieldCommand::parse(words)
+                    .map(Command::Wield)
+                    .map_err(HumanActionParseError::WieldActionParseError),
                 "circumspect" => Ok(Command::Circumspect),
                 "inventory" => Ok(Command::Inventory),
+                "use" => use_command::UseCommand::parse(words)
+                    .map(Command::Use)
+                    .map_err(HumanActionParseError::UseActionParseError),
                 other => Err(HumanActionParseError::InvalidActionName(other.to_string())),
             },
             None => Err(HumanActionParseError::NoActionNameProvided),

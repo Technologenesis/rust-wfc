@@ -58,6 +58,10 @@ impl TypedWorldObject for Hand {
     }
 
     fn definite_description(&self) -> String {
+        String::from("the hand")
+    }
+
+    fn indefinite_description(&self) -> String {
         String::from("a hand")
     }
 
@@ -117,9 +121,24 @@ impl TypedWorldObject for Hand {
     }
 }
 
+#[derive(Debug)]
+pub struct HandUseError;
+
+impl std::error::Error for HandUseError {}
+
+impl std::fmt::Display for HandUseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "you can't think of anything particularly interesting to do with this hand")
+    }
+}
+
 impl InventoryItem for Hand {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(<Hand as TypedWorldObject>::dummy(self))
+    }
+
+    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        return Err(Box::new(HandUseError));
     }
 }
 
@@ -152,5 +171,21 @@ pub fn hand(base_mass: Quantity<Mass>, held_item: Option<impl InventoryItem + 's
             item
         }),
         base_mass,
+    }
+}
+
+impl Hand {
+    pub fn wield(&mut self, item: Box<dyn InventoryItem>) {
+        self.held_item = Some(item);
+    }
+
+    pub fn wielded_item(&self) -> Option<&dyn InventoryItem> {
+        self.held_item.as_ref().map(|item| item.as_ref())
+    }
+
+    pub fn wielded_item_mut(&mut self) -> Option<&mut dyn InventoryItem> {
+        self.held_item.as_mut().map(|item| {
+            item.as_mut()
+        })
     }
 }

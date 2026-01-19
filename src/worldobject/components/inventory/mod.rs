@@ -36,6 +36,18 @@ impl Inventory {
         handle
     }
 
+    pub fn get(&self, handle: &InventoryItemHandle) -> Option<&Box<dyn InventoryItem>> {
+        self.0.get(handle)
+    }
+
+    pub fn get_mut(&mut self, handle: &InventoryItemHandle) -> Option<&mut Box<dyn InventoryItem>> {
+        self.0.get_mut(handle)
+    }
+
+    pub fn take(&mut self, handle: &InventoryItemHandle) -> Option<Box<dyn InventoryItem>> {
+        self.0.remove(handle)
+    }
+
     pub fn dummy(&self) -> Self {
         Self(self.0.iter().map(
             |(handle, item)| (handle.clone(), item.dummy())

@@ -68,7 +68,7 @@ impl NetworkHumanControllerClient {
             )?;
 
             tokio::task::block_in_place(|| Self::handle_message(message, &mut client.subcontroller, &mut stream)).await
-                .map_err(|_| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JSON")))?;
+                .map_err(|err| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())))?;
         }
     }
 

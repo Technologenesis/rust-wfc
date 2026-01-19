@@ -119,8 +119,8 @@ impl IntransitiveVerbTrait for ToCircumspect {
 #[derive(Copy, Clone)]
 pub struct ToCheck;
 
-impl IntransitiveVerbTrait for ToCheck {
-    fn clone_box(&self) -> Box<dyn IntransitiveVerbTrait> {
+impl TransitiveVerbTrait for ToCheck {
+    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
         Box::new(*self)
     }
 
@@ -128,6 +128,54 @@ impl IntransitiveVerbTrait for ToCheck {
         match person {
             GrammaticalPerson::ThirdPersonSingularGendered => String::from("checks"),
             _ => String::from("check"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ToWield;
+
+impl TransitiveVerbTrait for ToWield {
+    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("wields"),
+            _ => String::from("wield"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ToUse;
+
+impl TransitiveVerbTrait for ToUse {
+    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("uses"),
+            _ => String::from("use"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ToCast;
+
+impl TransitiveVerbTrait for ToCast {
+    fn clone_box(&self) -> Box<dyn TransitiveVerbTrait> {
+        Box::new(*self)
+    }
+
+    fn conjugate(&self, person: &GrammaticalPerson) -> String {
+        match person {
+            GrammaticalPerson::ThirdPersonSingularGendered => String::from("casts"),
+            _ => String::from("cast"),
         }
     }
 }

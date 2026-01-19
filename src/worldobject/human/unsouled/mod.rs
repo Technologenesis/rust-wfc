@@ -77,6 +77,10 @@ impl TypedWorldObject for UnsouledHuman {
         self.name.clone()
     }
 
+    fn indefinite_description(&self) -> String {
+        format!("a {}", self.gender.noun())
+    }
+
     fn definite_description(&self) -> String {
         self.name.clone()
     }

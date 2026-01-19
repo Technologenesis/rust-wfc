@@ -50,9 +50,24 @@ impl Rat {
 
 impl std::error::Error for RatInventoryError {}
 
+#[derive(Debug)]
+pub struct RatUseError;
+
+impl std::error::Error for RatUseError {}
+
+impl std::fmt::Display for RatUseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "you can't think of anything particularly interesting to do with this rat")
+    }
+}
+
 impl InventoryItem for Rat {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(<Rat as TypedWorldObject>::dummy(self))
+    }
+
+    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        return Err(Box::new(RatUseError));
     }
 }
 
@@ -90,6 +105,14 @@ impl TypedWorldObject for Rat {
             String::from("the rat")
         } else {
             String::from("the dead rat")
+        }
+    }
+
+    fn indefinite_description(&self) -> String {
+        if self.alive {
+            String::from("a rat")
+        } else {
+            String::from("a dead rat")
         }
     }
 

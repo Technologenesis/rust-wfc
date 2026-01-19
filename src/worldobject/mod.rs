@@ -1,6 +1,5 @@
 pub mod human;
 pub mod rat;
-pub mod sword;
 pub mod none;
 pub mod components;
 pub mod fns;
@@ -41,6 +40,7 @@ pub trait TypedWorldObject: Send {
     fn name(&self) -> String;
     fn examine(&self) -> String;
     fn definite_description(&self) -> String;
+    fn indefinite_description(&self) -> String;
     fn pronoun(&self) -> String;
 
     // creates a new object with the same properties as this one,
@@ -75,6 +75,10 @@ impl<T: TypedWorldObject + Send + Sync + 'static> WorldObject for T {
 
     fn definite_description(&self) -> String {
         <T as TypedWorldObject>::definite_description(&self)
+    }
+
+    fn indefinite_description(&self) -> String {
+        <T as TypedWorldObject>::indefinite_description(&self)
     }
 
     fn pronoun(&self) -> String {
@@ -126,6 +130,7 @@ pub trait WorldObject: Send + Sync {
     fn name(&self) -> String;
     fn examine(&self) -> String;
     fn definite_description(&self) -> String;
+    fn indefinite_description(&self) -> String;
     fn pronoun(&self) -> String;
 
     // physics

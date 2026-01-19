@@ -43,6 +43,10 @@ impl TypedWorldObject for NoInventoryItem {
         WorldObject::definite_description(&self.0)
     }
 
+    fn indefinite_description(&self) -> String {
+        WorldObject::indefinite_description(&self.0)
+    }
+
     fn pronoun(&self) -> String {
         WorldObject::pronoun(&self.0)
     }
@@ -85,8 +89,23 @@ impl TypedWorldObject for NoInventoryItem {
     }
 }
 
+#[derive(Debug)]
+pub struct NoInventoryItemUseError;
+
+impl std::error::Error for NoInventoryItemUseError {}
+
+impl std::fmt::Display for NoInventoryItemUseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "how did you even get one of these?")
+    }
+}
+
 impl InventoryItem for NoInventoryItem {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(NoInventoryItem(TypedWorldObject::dummy(&self.0)))
+    }
+
+    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        return Err(Box::new(NoInventoryItemUseError));
     }
 }

@@ -104,6 +104,10 @@ impl TypedWorldObject for NoWorldObject {
     fn definite_description(&self) -> String {
         String::from("nothing")
     }
+
+    fn indefinite_description(&self) -> String {
+        String::from("nothing")
+    }
     
     fn pronoun(&self) -> String {
         String::from("it")

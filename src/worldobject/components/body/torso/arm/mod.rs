@@ -97,6 +97,10 @@ impl TypedWorldObject for Arm {
     }
 
     fn definite_description(&self) -> String {
+        String::from("the arm")
+    }
+
+    fn indefinite_description(&self) -> String {
         String::from("an arm")
     }
 
@@ -154,8 +158,53 @@ impl TypedWorldObject for Arm {
     }
 }
 
+#[derive(Debug)]
+pub struct ArmUseError;
+
+impl std::error::Error for ArmUseError {}
+
+impl std::fmt::Display for ArmUseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "you can't think of anything particularly interesting to do with this arm")
+    }
+}
+
 impl InventoryItem for Arm {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(<Arm as TypedWorldObject>::dummy(self))
+    }
+
+    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        return Err(Box::new(ArmUseError));
+    }
+}
+
+#[derive(Debug)]
+pub enum ArmWieldError {
+    NoHand,
+}
+
+impl std::error::Error for ArmWieldError {}
+
+impl std::fmt::Display for ArmWieldError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoHand => write!(f, "arm has no hand"),
+        }
+    }
+}
+
+impl Arm {
+    pub fn wield(&mut self, item: Box<dyn InventoryItem>) -> Result<(), ArmWieldError> {
+        self.hand.as_mut().map(|hand| hand.wield(item)).ok_or(ArmWieldError::NoHand)?;
+        Ok(())
+    }
+
+    pub fn wielded_item(&self) -> Option<&dyn InventoryItem> {
+        self.hand.as_ref().and_then(|hand| hand.wielded_item())
+    }
+
+    pub fn wielded_item_mut(&mut self) -> Option<&mut dyn InventoryItem> {
+        self.hand.as_mut().and_then(|hand| hand.wielded_item_mut())
     }
 }

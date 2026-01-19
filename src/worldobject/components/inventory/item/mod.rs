@@ -1,9 +1,15 @@
 pub mod none;
+pub mod sword;
+pub mod wand;
 
 use async_trait::async_trait;
+use serde::Serialize;
+use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::{
     world::{
+        World,
         handle::WorldObjectHandle,
     },
     worldobject::{
@@ -20,8 +26,16 @@ use crate::{
 
 use super::Inventory;
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub struct InventoryItemHandle(uuid::Uuid);
+
+impl TryFrom<&str> for InventoryItemHandle {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(InventoryItemHandle(Uuid::try_parse(value).map_err(|_| "invalid UUID")?))
+    }
+}
 
 impl std::fmt::Display for InventoryItemHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,6 +57,7 @@ impl From<InventoryItemHandle> for String {
 
 pub trait InventoryItem: WorldObject {
     fn dummy(&self) -> Box<dyn InventoryItem>;
+    fn use_item(&mut self, world: &World, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>>;
 }
 
 #[async_trait]
@@ -65,6 +80,10 @@ impl WorldObject for Box<dyn InventoryItem> {
 
     fn definite_description(&self) -> String {
         (**self).definite_description()
+    }
+
+    fn indefinite_description(&self) -> String {
+        (**self).indefinite_description()
     }
 
     fn pronoun(&self) -> String {
@@ -100,8 +119,13 @@ impl WorldObject for Box<dyn InventoryItem> {
     }
 }
 
+#[async_trait]
 impl InventoryItem for Box<dyn InventoryItem> {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         InventoryItem::dummy(&(**self))
+    }
+
+    fn use_item(&mut self, world: &World, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        (**self).use_item(world, target_handle)
     }
 }

@@ -17,7 +17,8 @@ use {
     std::{collections::HashMap, io, fs::File},
     logging::{basic::BasicLogger, channel::LoggingChannel},
     world::{World, coord::WorldCoord},
-    worldobject::{WorldObject, sword::Sword, rat::Rat,
+    worldobject::{WorldObject, components::inventory::item::{
+        sword::Sword, wand::Wand}, rat::Rat,
         components::controllers::net::client::NetworkHumanControllerClient
     },
     quantities::{distance::meters, mass::kilograms, speed::meters_per_second}
@@ -61,6 +62,11 @@ async fn main() {
                 meters_per_second(1.0)
             )),
             WorldCoord::new(meters(2.0), meters(0.0))
+        );
+        world.add_object(
+            String::from("wand"),
+            Box::new(Wand),
+            WorldCoord::new(meters(3.0), meters(0.0))
         );
 
         // add local player

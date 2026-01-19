@@ -108,6 +108,10 @@ impl TypedWorldObject for Sword {
         String::from("the sword")
     }
 
+    fn indefinite_description(&self) -> String {
+        String::from("a sword")
+    }
+
     fn pronoun(&self) -> String {
         String::from("it")
     }
@@ -116,5 +120,20 @@ impl TypedWorldObject for Sword {
 impl InventoryItem for Sword {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(<Sword as TypedWorldObject>::dummy(self))
+    }
+
+    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        return Err(Box::new(SwordUseError));
+    }
+}
+
+#[derive(Debug)]
+pub struct SwordUseError;
+
+impl std::error::Error for SwordUseError {}
+
+impl std::fmt::Display for SwordUseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "you can't think of anything particularly interesting to do with this sword")
     }
 }

@@ -17,7 +17,7 @@ use crate::{
             body::Body,
             inventory::{
                 Inventory,
-                item::none::NoInventoryItem
+                item::{InventoryItem, none::NoInventoryItem}
             }
         }, fns::update::Action
     },
@@ -63,6 +63,10 @@ impl TypedWorldObject for Human {
         self.unsouled.name.clone()
     }
 
+    fn indefinite_description(&self) -> String {
+        format!("a {}", self.unsouled.gender.noun())
+    }
+
     fn pronoun(&self) -> String {
         self.unsouled.gender.subject_pronoun().to_string()
     }
@@ -91,16 +95,10 @@ impl TypedWorldObject for Human {
         Ok(format!("{} says \"Hello\".", self.unsouled.name))
     }
 
-    /*
-    fn interact(&self, actor: &world::WorldObjectHandle, world: &mut world::World) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
-    */
-
     async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, WorldObjectError> {
         let action = self.controller.prompt_turn().await?;
 
-        human_actions::from_command(action, world, my_handle, self.dummy())
+        self.from_command(action, world, my_handle)
             .map_err(|err| Box::new(err).into())
     }
 
@@ -115,5 +113,19 @@ impl TypedWorldObject for Human {
 
     fn mass(&self) -> Quantity<Mass> {
         self.unsouled.mass()
+    }
+}
+
+impl Human {
+    pub fn wielded_items<'a>(&'a self) -> impl Iterator<Item = &'a dyn InventoryItem> {
+        let left_items = self.unsouled.body.torso.left_arm.wielded_item().into_iter();
+        let right_items = self.unsouled.body.torso.right_arm.wielded_item().into_iter();
+        left_items.chain(right_items)
+    }
+
+    pub fn wielded_items_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut dyn InventoryItem> {
+        let left_items = self.unsouled.body.torso.left_arm.wielded_item_mut().into_iter();
+        let right_items = self.unsouled.body.torso.right_arm.wielded_item_mut().into_iter();
+        left_items.chain(right_items)
     }
 }
