@@ -17,11 +17,11 @@ pub fn action(me: UnsouledHuman) -> Action {
                         "{}\n{}\n{}",
                         {
                             let handles_and_descriptions = me.inventory()?.0.iter()
-                                .map(|(handle, object)| (handle, format!("{}: {}", handle, object.definite_description())))
+                                .map(|(handle, object)| (handle, format!("{}: {}", handle, object.indefinite_description())))
                                 .collect::<Vec<_>>();
 
                             if handles_and_descriptions.is_empty() {
-                                format!("you have are carrying nothing")
+                                format!("you are carrying nothing")
                             } else {
                                 format!("you are carrying:\n - {}", handles_and_descriptions.iter().map(|(_, description)| description.clone()).collect::<Vec<_>>().join("\n - "))
                             }

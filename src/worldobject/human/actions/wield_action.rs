@@ -28,7 +28,7 @@ impl std::error::Error for WieldCommandToActionError {}
 pub fn from_command(me: &mut Human, cmd: WieldCommand) -> Result<Action, WieldCommandToActionError> {
     let inventory_item = me.unsouled.inventory.take(&cmd.item_handle)
         .ok_or(WieldCommandToActionError::NoSuchItem(cmd.item_handle))?;
-    let inventory_item_description = inventory_item.definite_description();
+    let inventory_item_description = inventory_item.indefinite_description();
 
     let wielding_arm = match me.unsouled.dominant_arm {
         DirectionHorizontal::Left => {

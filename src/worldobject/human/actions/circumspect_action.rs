@@ -10,7 +10,7 @@ pub fn action() -> Action {
             move |world: &mut World| {
                 Box::pin(async move {
                     let handles_and_descriptions = world.objects.iter()
-                        .map(|(handle, object)| (handle, format!("{}: {}", handle, object.1.definite_description())))
+                        .map(|(handle, object)| (handle, format!("{}: {}", handle, object.1.indefinite_description())))
                         .collect::<Vec<_>>();
 
                     Ok(Some(if handles_and_descriptions.is_empty() {
