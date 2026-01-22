@@ -27,9 +27,12 @@ use crate::{
 
 use super::{
     TypedWorldObject,
-    components::inventory::{
-        Inventory,
-        item::none::NoInventoryItem
+    components::{
+        inventory::{
+            Inventory,
+            item::none::NoInventoryItem
+        },
+        controllers::Controller
     },
     fns::update::Action,
     Error
@@ -84,6 +87,17 @@ impl std::fmt::Display for NoWorldObjectInteractError {
 }
 
 impl std::error::Error for NoWorldObjectInteractError {}
+
+#[derive(Debug)]
+pub struct NoWorldObjectControllerError;
+
+impl std::fmt::Display for NoWorldObjectControllerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "this object doesn't exist; no controller can be set for it")
+    }
+}
+
+impl std::error::Error for NoWorldObjectControllerError {}
 
 // implement the TypedWorldObject trait for NoWorldObject
 // naturally, this should never actually be used,
@@ -147,5 +161,21 @@ impl TypedWorldObject for NoWorldObject {
 
     async fn interact(&mut self) -> Result<String, Error> {
         Err(Box::new(NoWorldObjectInteractError))
+    }
+
+    fn controller(&self) -> Result<&dyn Controller, Error> {
+        Err(Box::new(NoWorldObjectControllerError))
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error> {
+        Err(Box::new(NoWorldObjectControllerError))
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error> {
+        Err(Box::new(NoWorldObjectControllerError))
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, Error)> {
+        Err((controller, Box::new(NoWorldObjectControllerError)))
     }
 }

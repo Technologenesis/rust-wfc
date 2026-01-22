@@ -4,11 +4,11 @@ use crate::{
     worldobject::{
         TypedWorldObject,
         fns::update::Action,
-        human::unsouled::UnsouledHuman
+        human::Human
     }
 };
 
-pub fn action(me: UnsouledHuman) -> Action {
+pub fn action(me: Human) -> Action {
     Action{
         exec: Box::new(
             move |_: &mut World| {

@@ -11,9 +11,12 @@ use crate::{
         World,
         handle::WorldObjectHandle
     },
-    worldobject::components::inventory::{
-        Inventory,
-        item::InventoryItem
+    worldobject::components::{
+        controllers::Controller,
+        inventory::{
+            Inventory,
+            item::InventoryItem
+        }
     },
     quantities::{
         Quantity,
@@ -54,6 +57,12 @@ pub trait TypedWorldObject: Send {
 
     // mass accessor
     fn mass(&self) -> Quantity<Mass>;
+
+    // controller accessors
+    fn controller(&self) -> Result<&dyn Controller, Error>;
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error>;
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error>;
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, Error)>;
 
     // game mechanics; all async to allow interaction with the controller.
     async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
@@ -122,6 +131,22 @@ impl<T: TypedWorldObject + Send + Sync + 'static> WorldObject for T {
     async fn interact(&mut self) -> Result<String, Error> {
         <T as TypedWorldObject>::interact(self).await
     }
+
+    fn controller(&self) -> Result<&dyn Controller, Error> {
+        <T as TypedWorldObject>::controller(self)
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error> {
+        <T as TypedWorldObject>::controller_mut(self)
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error> {
+        <T as TypedWorldObject>::take_controller(self)
+    }
+
+    fn set_controller(&mut self, controller: Box<dyn Controller>) -> Result<(), (Box<dyn Controller>, Error)> {
+        <T as TypedWorldObject>::set_controller(self, controller)
+    }
 }
 
 #[async_trait]
@@ -150,4 +175,10 @@ pub trait WorldObject: Send + Sync {
     async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
     async fn send_message(&mut self, message: String) -> Result<(), Error>;
     async fn interact(&mut self) -> Result<String, Error>;
+
+    // controller accessors
+    fn controller(&self) -> Result<&dyn Controller, Error>;
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error>;
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error>;
+    fn set_controller(&mut self, controller: Box<dyn Controller>) -> Result<(), (Box<dyn Controller>, Error)>;
 }

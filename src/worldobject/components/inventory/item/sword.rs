@@ -22,9 +22,12 @@ use crate::{
         Error as WorldObjectError,
         TypedWorldObject,
         fns::update::Action,
-        components::inventory::{
-            Inventory,
-            item::InventoryItem
+        components::{
+            inventory::{
+                Inventory,
+                item::InventoryItem
+            },
+            controllers::Controller
         }
     }
 };
@@ -54,6 +57,17 @@ impl fmt::Display for SwordInventoryError {
 }
 
 impl error::Error for SwordInventoryError {}
+
+#[derive(Debug)]
+pub struct SwordControllerError;
+
+impl fmt::Display for SwordControllerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "swords don't have controllers")
+    }
+}
+
+impl error::Error for SwordControllerError {}
 
 #[async_trait]
 impl TypedWorldObject for Sword {
@@ -115,6 +129,22 @@ impl TypedWorldObject for Sword {
     fn pronoun(&self) -> String {
         String::from("it")
     }
+
+    fn controller(&self) -> Result<&dyn Controller, WorldObjectError> {
+        Err(Box::new(SwordControllerError))
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, WorldObjectError> {
+        Err(Box::new(SwordControllerError))
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, WorldObjectError> {
+        Err(Box::new(SwordControllerError))
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, WorldObjectError)> {
+        Err((controller, Box::new(SwordControllerError)))
+    }
 }
 
 impl InventoryItem for Sword {
@@ -122,7 +152,7 @@ impl InventoryItem for Sword {
         Box::new(<Sword as TypedWorldObject>::dummy(self))
     }
 
-    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+    fn use_item(&mut self, _: &World, _: WorldObjectHandle, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
         return Err(Box::new(SwordUseError));
     }
 }

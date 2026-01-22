@@ -29,9 +29,12 @@ use crate::{
         TypedWorldObject,
         WorldObject,
         fns::update::Action,
-        components::inventory::{
-            Inventory,
-            item::InventoryItem
+        components::{
+            controllers::Controller,
+            inventory::{
+                Inventory,
+                item::InventoryItem
+            }
         }
     }
 };
@@ -57,6 +60,17 @@ impl std::fmt::Display for ArmInventoryError {
         write!(f, "arms don't have inventories")
     }
 }
+
+#[derive(Debug)]
+pub struct ArmControllerError;
+
+impl std::fmt::Display for ArmControllerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ArmControllerError")
+    }
+}
+
+impl std::error::Error for ArmControllerError {}
 
 pub fn arm(
     base_mass: Quantity<Mass>,
@@ -156,6 +170,22 @@ impl TypedWorldObject for Arm {
     async fn interact(&mut self) -> Result<String, Error> {
         Ok(String::from("you can't think of anything particularly interesting to do with this."))
     }
+
+    fn controller(&self) -> Result<&dyn Controller, Error> {
+        Err(Box::new(ArmControllerError))
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error> {
+        Err(Box::new(ArmControllerError))
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error> {
+        Err(Box::new(ArmControllerError))
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, Error)> {
+        Err((controller, Box::new(ArmControllerError)))
+    }
 }
 
 #[derive(Debug)]
@@ -174,7 +204,7 @@ impl InventoryItem for Arm {
         Box::new(<Arm as TypedWorldObject>::dummy(self))
     }
 
-    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+    fn use_item(&mut self, _: &World, _: WorldObjectHandle, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
         return Err(Box::new(ArmUseError));
     }
 }

@@ -16,12 +16,7 @@ use crate::{
             },
             controllers::terminal::TerminalHumanController,
         },
-        human::{
-            Human,
-            unsouled::{
-                UnsouledHuman
-            },
-        }
+        human::Human
     },
     quantities::{
         speed::meters_per_second,
@@ -73,47 +68,45 @@ pub fn create_character() -> Human {
     println!("After some effort, you bring forth clear memories of being a {}.", gender.noun());
 
     Human::new(
-        UnsouledHuman::new(
-            name,
-            gender,
-            Body{
-                base_mass: kilograms(100.0),
-                head: Head{
-                    base_mass: kilograms(7.0),
-                    mouth: Mouth{
-                        base_mass: kilograms(1.0),
-                        teeth: vec![],
-                    },
-                },
-                torso: Torso{
-                    base_mass: kilograms(20.0),
-                    left_arm: arm(
-                        kilograms(10.0),
-                        meters(1.0),
-                        newtons(1000.0),
-                        Some(hand(
-                            kilograms(1.0),
-                            None::<Box<dyn InventoryItem>>
-                        ))
-                    ),
-                    right_arm: arm(
-                        kilograms(10.0),
-                        meters(1.0),
-                        newtons(1000.0),
-                        Some(hand(
-                            kilograms(1.0),
-                            None::<Box<dyn InventoryItem>>
-                        ))
-                    ),
-                },
-                legs: Legs{
-                    base_mass: kilograms(10.0),
-                    speed: meters_per_second(5.0),
+        name,
+        gender,
+        Body{
+            base_mass: kilograms(100.0),
+            head: Head{
+                base_mass: kilograms(7.0),
+                mouth: Mouth{
+                    base_mass: kilograms(1.0),
+                    teeth: vec![],
                 },
             },
-            DirectionHorizontal::Right,
-            Inventory::new(),
-        ),
-        TerminalHumanController{}
+            torso: Torso{
+                base_mass: kilograms(20.0),
+                left_arm: arm(
+                    kilograms(10.0),
+                    meters(1.0),
+                    newtons(1000.0),
+                    Some(hand(
+                        kilograms(1.0),
+                        None::<Box<dyn InventoryItem>>
+                    ))
+                ),
+                right_arm: arm(
+                    kilograms(10.0),
+                    meters(1.0),
+                    newtons(1000.0),
+                    Some(hand(
+                        kilograms(1.0),
+                        None::<Box<dyn InventoryItem>>
+                    ))
+                ),
+            },
+            legs: Legs{
+                base_mass: kilograms(10.0),
+                speed: meters_per_second(5.0),
+            },
+        },
+        DirectionHorizontal::Right,
+        Inventory::new(),
+        Some(TerminalHumanController{})
     )
 }

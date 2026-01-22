@@ -20,7 +20,8 @@ use crate::{
     world::{
         handle::WorldObjectHandle,
         World
-    }
+    },
+    worldobject::components::controllers::Controller
 };
 use std::fmt;
 
@@ -38,6 +39,8 @@ impl fmt::Display for HandInventoryError {
     }
 }
 
+impl std::error::Error for HandInventoryError {}
+
 pub struct HandDeserializeError;
 
 impl fmt::Display for HandDeserializeError {
@@ -46,7 +49,16 @@ impl fmt::Display for HandDeserializeError {
     }
 }
 
-impl std::error::Error for HandInventoryError {}
+#[derive(Debug)]
+pub struct HandControllerError;
+
+impl std::fmt::Display for HandControllerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HandControllerError")
+    }
+}
+
+impl std::error::Error for HandControllerError {}
 
 #[async_trait]
 impl TypedWorldObject for Hand {
@@ -119,6 +131,22 @@ impl TypedWorldObject for Hand {
     async fn interact(&mut self) -> Result<String, WorldObjectError> {
         Ok(String::from("you can't think of anything particularly interesting to do with this."))
     }
+
+    fn controller(&self) -> Result<&dyn Controller, WorldObjectError> {
+        Err(Box::new(HandControllerError))
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, WorldObjectError> {
+        Err(Box::new(HandControllerError))
+    }
+    
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, WorldObjectError> {
+        Err(Box::new(HandControllerError))
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, WorldObjectError)> {
+        Err((controller, Box::new(HandControllerError)))
+    }
 }
 
 #[derive(Debug)]
@@ -137,7 +165,7 @@ impl InventoryItem for Hand {
         Box::new(<Hand as TypedWorldObject>::dummy(self))
     }
 
-    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+    fn use_item(&mut self, _: &World, _: WorldObjectHandle, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
         return Err(Box::new(HandUseError));
     }
 }

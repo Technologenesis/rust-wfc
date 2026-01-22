@@ -1,6 +1,9 @@
 use tokio::net::TcpStream;
 use tokio::io::AsyncWriteExt;
-use crate::worldobject::human;
+use crate::worldobject::{
+    human,
+    WorldObject
+};
 
 use super::super::Controller;
 
@@ -23,7 +26,7 @@ impl NetworkHumanControllerClient {
     // It then perpetually waits for prompts from the remote controller,
     // forwards them to the underlying local controller, and sends the results
     // back to the remote controller.
-    pub async fn connect(ip_address: String, character: human::Human) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn connect(ip_address: String, mut character: human::Human) -> Result<(), Box<dyn std::error::Error>> {
         // Normalize "localhost" to "127.0.0.1" for consistency
         let addr = if ip_address == "localhost" {
             "127.0.0.1"
@@ -33,9 +36,9 @@ impl NetworkHumanControllerClient {
         
         let mut stream = TcpStream::connect((addr, 25565)).await?;
 
-        let (unsouled, controller) = character.desouled();
+        let controller = character.take_controller()?;
 
-        let json = serde_json::to_vec(&unsouled)?;
+        let json = serde_json::to_vec(&character)?;
 
         //println!("Sending character to lobby: {}", String::from_utf8_lossy(&json));
 

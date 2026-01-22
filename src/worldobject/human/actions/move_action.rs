@@ -6,7 +6,7 @@ use crate::{
     worldobject::{
         Error as WorldObjectError,
         components::controllers::commands::move_command::MoveCommand,
-        human::unsouled::UnsouledHuman,
+        human::Human,
         fns::update::Action
     },
     quantities::{
@@ -30,7 +30,7 @@ impl std::fmt::Display for MoveError {
 
 impl std::error::Error for MoveError {}
 
-pub fn from_command(cmd: MoveCommand, my_handle: WorldObjectHandle, me: UnsouledHuman) -> Action {
+pub fn from_command(cmd: MoveCommand, my_handle: WorldObjectHandle, me: Human) -> Action {
     Action{
         exec: Box::new(
             move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {

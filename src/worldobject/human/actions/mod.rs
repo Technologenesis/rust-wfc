@@ -10,7 +10,7 @@ pub mod use_action;
 
 use crate::{
     world::{World, handle::WorldObjectHandle}, worldobject::{
-        TypedWorldObject, components::controllers::commands::Command, fns::update::Action, human::unsouled::UnsouledHuman
+        TypedWorldObject, components::controllers::commands::Command, fns::update::Action, human::Human
     }
 };
 
@@ -46,7 +46,7 @@ impl std::fmt::Display for CommandToActionError {
 
 impl std::error::Error for CommandToActionError {}
 
-impl super::Human {
+impl Human {
     pub fn from_command(&mut self, cmd: Command, world: &World, my_handle: WorldObjectHandle) -> Result<Action, CommandToActionError> {
         match cmd {
             Command::Move(move_cmd) => Ok(move_action::from_command(move_cmd, my_handle, self.dummy())),
@@ -62,7 +62,7 @@ impl super::Human {
             Command::Inventory => Ok(inventory_action::action(self.dummy())),
             Command::Wield(wield_cmd) => wield_action::from_command(self, wield_cmd)
                 .map_err(CommandToActionError::WieldCommandToActionError),
-            Command::Use(use_cmd) => use_action::from_command(self, use_cmd, world)
+            Command::Use(use_cmd) => use_action::from_command(self, my_handle, use_cmd, world)
                 .map_err(CommandToActionError::UseCommandToActionError),
         }
     }

@@ -20,8 +20,8 @@ use crate::{
     worldobject::{
         components::controllers::net::controller::NetworkController,
         WorldObject,
+        TypedWorldObject,
         human::{
-            unsouled::UnsouledHuman,
             Human
         }
     },
@@ -103,6 +103,21 @@ pub struct Lobby {
     characters: Vec<Box<dyn WorldObject>>,
 }
 
+#[derive(Debug)]
+pub enum LobbyError {
+    HumanDeserializeError(String)
+}
+
+impl std::fmt::Display for LobbyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::HumanDeserializeError(error) => write!(f, "Error deserializing human: {}", error),
+        }
+    }
+}
+
+impl std::error::Error for LobbyError {}
+
 impl Lobby {
     fn new(logger: Logger<impl LoggerImpl + 'static>, new_controller_logger: Box<dyn Fn() -> Logger<Box<dyn LoggerImpl>>>) -> Self {
         Self {
@@ -125,7 +140,7 @@ impl Lobby {
         Ok(())
     }
 
-    async fn register_connection(&mut self, mut stream: TcpStream, _:  SocketAddr) {
+    async fn register_connection(&mut self, mut stream: TcpStream, _:  SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
         println!("Reading character information from connection...");
         let mut json_stream = serde_json::Deserializer::from_reader(SyncIoBridge::new(&mut stream)).into_iter::<serde_json::Value>();
 
@@ -135,14 +150,19 @@ impl Lobby {
 
         //println!("Received character information: {}", (&next_json).to_string());
 
-        if let Ok(unsouled) = UnsouledHuman::try_from(&next_json) {
-            // TODO: Create proper network controller
-            if let Err(err) = self.add_character(Human::new(unsouled, NetworkController::new(stream, (self.new_controller_logger)()))) {
-                println!("Error adding character: {}", err);
-            }
-        } else if let Err(err) = UnsouledHuman::try_from(&next_json) {
-            println!("Error parsing character information: {}", err);
-        }
+        Human::try_from(&next_json)
+            .map_err(|error| -> Box<dyn std::error::Error> { Box::new(LobbyError::HumanDeserializeError(error)) })
+            .and_then(
+                |mut character| {
+                    <Human as TypedWorldObject>::set_controller(
+                        &mut character,
+                        NetworkController::new(stream, (self.new_controller_logger)())
+                    )
+                        .map_err(|(_, error)| error)?;
+
+                    self.add_character(character)
+                }
+            )
     }
 }
 

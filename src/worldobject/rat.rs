@@ -9,10 +9,11 @@ use crate::{
         TypedWorldObject,
         Error as WorldObjectError,
         fns::update::Action,
-        components::inventory::{
-            Inventory,
-            item::{
-                InventoryItem,
+        components::{
+            controllers::Controller,
+            inventory::{
+                Inventory,
+                item::InventoryItem
             }
         }
     },
@@ -61,12 +62,23 @@ impl std::fmt::Display for RatUseError {
     }
 }
 
+#[derive(Debug)]
+pub struct RatControllerError;
+
+impl std::fmt::Display for RatControllerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "rats don't have controllers")
+    }
+}
+
+impl std::error::Error for RatControllerError {}
+
 impl InventoryItem for Rat {
     fn dummy(&self) -> Box<dyn InventoryItem> {
         Box::new(<Rat as TypedWorldObject>::dummy(self))
     }
 
-    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+    fn use_item(&mut self, _: &World, _: WorldObjectHandle, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
         return Err(Box::new(RatUseError));
     }
 }
@@ -155,5 +167,21 @@ impl TypedWorldObject for Rat {
 
     async fn send_message(&mut self, message: String) -> Result<(), WorldObjectError> {
         Ok(())
+    }
+
+    fn controller(&self) -> Result<&dyn Controller, WorldObjectError> {
+        Err(Box::new(RatControllerError))
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, WorldObjectError> {
+        Err(Box::new(RatControllerError))
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, WorldObjectError> {
+        Err(Box::new(RatControllerError))
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, WorldObjectError)> {
+        Err((controller, Box::new(RatControllerError)))
     }
 }

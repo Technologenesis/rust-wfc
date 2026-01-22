@@ -1,6 +1,8 @@
 use crate::{
     lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToAttack},
-    worldobject::{fns::update::Action, human::unsouled::UnsouledHuman,
+    worldobject::{
+        fns::update::Action,
+        human::Human,
         components::controllers::commands::attack_command::AttackCommand
     },
     world::{World, WorldObjectGetError},
@@ -37,7 +39,7 @@ impl std::fmt::Display for AttackError {
 
 impl std::error::Error for AttackError {}
 
-pub fn from_command(cmd: AttackCommand, world: &World, me: UnsouledHuman) -> Result<Action, AttackCommandToActionError> {
+pub fn from_command(cmd: AttackCommand, world: &World, me: Human) -> Result<Action, AttackCommandToActionError> {
     let target_description = world.get_object(&cmd.target_handle)
         .map(|object| object.definite_description())
         .map_err(|err| AttackCommandToActionError::FailedToGetTargetObject(err))?;

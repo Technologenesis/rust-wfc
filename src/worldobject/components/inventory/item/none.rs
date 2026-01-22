@@ -6,6 +6,7 @@ use crate::{
         World
     },
     worldobject::{
+        components::controllers::Controller,
         none,
         WorldObject,
         TypedWorldObject,
@@ -87,6 +88,22 @@ impl TypedWorldObject for NoInventoryItem {
     async fn interact(&mut self) -> Result<String, WorldObjectError> {
         WorldObject::interact(&mut self.0).await
     }
+
+    fn controller(&self) -> Result<&dyn Controller, WorldObjectError> {
+        WorldObject::controller(&self.0)
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, WorldObjectError> {
+        WorldObject::controller_mut(&mut self.0)
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, WorldObjectError> {
+        WorldObject::take_controller(&mut self.0)
+    }
+
+    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, WorldObjectError)> {
+        TypedWorldObject::set_controller(&mut self.0, controller)
+    }
 }
 
 #[derive(Debug)]
@@ -105,7 +122,7 @@ impl InventoryItem for NoInventoryItem {
         Box::new(NoInventoryItem(TypedWorldObject::dummy(&self.0)))
     }
 
-    fn use_item(&mut self, _: &World, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+    fn use_item(&mut self, _: &World, _: WorldObjectHandle, _: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
         return Err(Box::new(NoInventoryItemUseError));
     }
 }

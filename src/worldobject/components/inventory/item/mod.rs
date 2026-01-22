@@ -13,6 +13,7 @@ use crate::{
         handle::WorldObjectHandle,
     },
     worldobject::{
+        components::controllers::Controller,
         WorldObject,
         fns::update::Action,
         Error as WorldObjectError
@@ -57,7 +58,7 @@ impl From<InventoryItemHandle> for String {
 
 pub trait InventoryItem: WorldObject {
     fn dummy(&self) -> Box<dyn InventoryItem>;
-    fn use_item(&mut self, world: &World, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>>;
+    fn use_item(&mut self, world: &World, user_handle: WorldObjectHandle, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>>;
 }
 
 #[async_trait]
@@ -117,6 +118,22 @@ impl WorldObject for Box<dyn InventoryItem> {
     async fn send_message(&mut self, message: String) -> Result<(), Box<dyn std::error::Error>> {
         (**self).send_message(message).await
     }
+
+    fn controller(&self) -> Result<&dyn Controller, Box<dyn std::error::Error>> {
+        (**self).controller()
+    }
+
+    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Box<dyn std::error::Error>> {
+        (**self).controller_mut()
+    }
+
+    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Box<dyn std::error::Error>> {
+        (**self).take_controller()
+    }
+
+    fn set_controller(&mut self, controller: Box<dyn Controller>) -> Result<(), (Box<dyn Controller>, Box<dyn std::error::Error>)> {
+        (**self).set_controller(controller)
+    }
 }
 
 #[async_trait]
@@ -125,7 +142,7 @@ impl InventoryItem for Box<dyn InventoryItem> {
         InventoryItem::dummy(&(**self))
     }
 
-    fn use_item(&mut self, world: &World, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
-        (**self).use_item(world, target_handle)
+    fn use_item(&mut self, world: &World, user_handle: WorldObjectHandle, target_handle: Option<WorldObjectHandle>) -> Result<Action, Box<dyn std::error::Error>> {
+        (**self).use_item(world, user_handle, target_handle)
     }
 }

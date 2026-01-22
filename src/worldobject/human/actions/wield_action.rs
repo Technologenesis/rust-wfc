@@ -2,7 +2,7 @@ use futures::future::BoxFuture;
 
 use crate::{
     lang::{TransitiveVerb, TransitiveVerbPhrase, VerbPhrase, verbs::ToWield}, world::World, worldobject::{
-        Error as WorldObjectError, TypedWorldObject, components::{
+        Error as WorldObjectError, components::{
             controllers::commands::wield_command::WieldCommand,
             inventory::item::InventoryItemHandle
         }, fns::update::Action, human::Human
@@ -13,12 +13,14 @@ use crate::{
 #[derive(Debug)]
 pub enum WieldCommandToActionError {
     NoSuchItem(InventoryItemHandle),
+    FailedToWieldItem(Box<dyn std::error::Error>),
 }
 
 impl std::fmt::Display for WieldCommandToActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoSuchItem(handle) => write!(f, "inventory does not contain item: {}", handle),
+            Self::FailedToWieldItem(err) => write!(f, "failed to wield item: {}", err),
         }
     }
 }
@@ -26,20 +28,21 @@ impl std::fmt::Display for WieldCommandToActionError {
 impl std::error::Error for WieldCommandToActionError {}
 
 pub fn from_command(me: &mut Human, cmd: WieldCommand) -> Result<Action, WieldCommandToActionError> {
-    let inventory_item = me.unsouled.inventory.take(&cmd.item_handle)
+    let inventory_item = me.inventory.take(&cmd.item_handle)
         .ok_or(WieldCommandToActionError::NoSuchItem(cmd.item_handle))?;
     let inventory_item_description = inventory_item.indefinite_description();
 
-    let wielding_arm = match me.unsouled.dominant_arm {
+    let wielding_arm = match me.dominant_arm {
         DirectionHorizontal::Left => {
-            &mut me.unsouled.body.torso.left_arm
+            &mut me.body.torso.left_arm
         }
         DirectionHorizontal::Right => {
-            &mut me.unsouled.body.torso.right_arm
+            &mut me.body.torso.right_arm
         }
     };
 
-    wielding_arm.wield(inventory_item);
+    wielding_arm.wield(inventory_item)
+        .map_err(|err| WieldCommandToActionError::FailedToWieldItem(Box::new(err)))?;
 
     Ok(Action{
         exec: Box::new(

@@ -255,10 +255,7 @@ impl World {
                 let (second_person_message, third_person_message) = Self::second_and_third_person_messages(
                     object_description,
                     VerbPhrase::Transitive(
-                        TransitiveVerbPhrase {
-                            verb: TransitiveVerb::new(ToDo),
-                            direct_object: String::from("nothing"),
-                        }
+                        TransitiveVerb::new(ToDo).with_direct_object(String::from("nothing"))
                     )
                 );
                 (format!("{}; {}", err, second_person_message), third_person_message)
