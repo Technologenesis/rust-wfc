@@ -4,8 +4,8 @@ use crate::{
     lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToExamine},
     world::{World, WorldObjectGetError},
     worldobject::{
-        Error as WorldObjectError,
-        components::controllers::commands::examine_command::ExamineCommand,
+        fns::Error as WorldObjectError,
+        components::controllable::controller::commands::examine_command::ExamineCommand,
         fns::update::Action
     }
 };
@@ -27,15 +27,14 @@ impl std::error::Error for ExamineCommandToActionError {}
 
 pub fn from_command(cmd: ExamineCommand, world: &World) -> Result<Action, ExamineCommandToActionError> {
     let target_description = world.get_object(&cmd.target_handle)
-        .map(|object| object.definite_description())
+        .map(|object| object.linguistics().definite_description.clone())
         .map_err(|err| ExamineCommandToActionError::FailedToGetTargetObject(err))?;
 
     Ok(Action{
         exec: Box::new(
             move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
                 Box::pin(async move {
-                    let object = world.get_object(&cmd.target_handle)?;
-                    let msg = format!("you see {}", object.examine());
+                    let msg: String = todo!("examine via component trait");
                     Ok(Some(msg))
                 })
             }

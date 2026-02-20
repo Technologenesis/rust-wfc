@@ -7,7 +7,7 @@ use crate::{
         Quantity,
         mass::Mass,
     },
-    worldobject::WorldObject,
+    worldobject::{WorldObject, components::physics::PhysicsObjectTrait},
 };
 
 use arm::Arm;

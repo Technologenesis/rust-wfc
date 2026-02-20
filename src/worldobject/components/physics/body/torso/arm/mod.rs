@@ -28,11 +28,11 @@ use crate::{
         components::{
             container::{
                 Container,
-                containable::Containable
+                containable::{Containable, ContainableTrait}
             },
             person::Person,
-            physics::PhysicsObject,
-            wielder::{Wielder, wieldable::Wieldable},
+            physics::{PhysicsObject, PhysicsObjectTrait},
+            wielder::{Wielder, WielderTrait, wieldable::{Wieldable, WieldableTrait}},
             controllable::Controllable
         }
     }
@@ -87,6 +87,26 @@ pub fn arm(
     }
 }
 
+impl Arm {
+    pub fn new(
+        base_mass: Quantity<Mass>,
+        reach: Quantity<Distance>,
+        punch_force: Quantity<Force>,
+        hand: Option<hand::Hand>
+    ) -> Arm {
+        arm(base_mass, reach, punch_force, hand)
+    }
+
+    pub fn dummy(&self) -> Arm {
+        Arm {
+            base_mass: self.base_mass.clone(),
+            reach: self.reach.clone(),
+            punch_force: self.punch_force.clone(),
+            hand: self.hand.as_ref().map(|h| hand::Hand::new(h.base_mass.clone(), None)),
+        }
+    }
+}
+
 impl TryFrom<&serde_json::Value> for Arm {
     type Error = String;
 
@@ -117,12 +137,12 @@ impl WorldObject for Arm {
         }
     }
     
-    fn send_message(&mut self, message: String) -> Result<(), Box<dyn StdError>> {
+    async fn send_message(&mut self, _message: String) -> Result<(), Box<dyn StdError>> {
         Ok(())
     }
 
     // extention traits
-    fn as_controllable(self: Box<Self>) -> Result<Box<Controllable>, Box<dyn StdError>> {
+    fn as_controllable(self: Box<Self>) -> Result<Controllable, Box<dyn StdError>> {
         Err(Box::from(format!("{} cannot be ensouled", self.linguistics().name)))
     }
     fn as_containable(self: Box<Self>) -> Result<Containable, Box<dyn StdError>> {
@@ -131,19 +151,41 @@ impl WorldObject for Arm {
     fn as_container(self: Box<Self>) -> Result<Container, Box<dyn StdError>> {
         Err(Box::from(format!("{} cannot contain items", self.linguistics().name)))
     }
-    fn as_person(self: Box<Self>) -> Result<Box<Person>, Box<dyn StdError>> {
+    fn as_person(self: Box<Self>) -> Result<Person, Box<dyn StdError>> {
         Err(Box::from(format!("{} is not a person", self.linguistics().name)))
     }
     fn as_physics_object(self: Box<Self>) -> Result<PhysicsObject, Box<dyn StdError>> {
         Ok(self)
     }
-    fn as_wielder(self: Box<Self>) -> Result<Box<Wielder>, Box<dyn StdError>> {
+    fn as_wielder(self: Box<Self>) -> Result<Wielder, Box<dyn StdError>> {
         Ok(self)
     }
-    fn as_wieldable(self: Box<Self>) -> Result<Box<Wieldable>, Box<dyn StdError>> {
+    fn as_wieldable(self: Box<Self>) -> Result<Wieldable, Box<dyn StdError>> {
         Ok(self)
     }
 }
+
+impl ContainableTrait for Arm {}
+
+impl PhysicsObjectTrait for Arm {
+    fn mass(&self) -> Quantity<Mass> {
+        self.base_mass.clone()
+    }
+
+    fn apply_force(&self, _force: &Quantity<Force>) -> Result<String, Box<dyn StdError>> {
+        Ok(String::from("the arm absorbs the force"))
+    }
+}
+
+impl WielderTrait for Arm {
+    fn wield(&mut self, item: Wieldable) -> Result<(), Box<dyn StdError>> {
+        let hand = self.hand.as_mut().ok_or(ArmWieldError::NoHand)?;
+        hand.held_item = Some(item);
+        Ok(())
+    }
+}
+
+impl WieldableTrait for Arm {}
 
 #[derive(Debug)]
 pub struct ArmUseError;
