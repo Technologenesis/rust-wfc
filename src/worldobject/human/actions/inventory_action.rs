@@ -2,7 +2,7 @@ use crate::{
     lang::{VerbPhrase, TransitiveVerb, TransitiveVerbPhrase, verbs::ToCheck},
     world::World,
     worldobject::{
-        TypedWorldObject,
+        WorldObject,
         fns::update::Action,
         human::Human
     }

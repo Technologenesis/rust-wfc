@@ -1,16 +1,16 @@
-pub mod move_action;
-pub mod interact_action;
-pub mod collect_action;
-pub mod attack_action;
-pub mod examine_action;
-pub mod circumspect_action;
-pub mod inventory_action;
-pub mod wield_action;
-pub mod use_action;
-
+// pub mod move_action;
+// pub mod interact_action;
+// pub mod collect_action;
+// pub mod attack_action;
+// pub mod examine_action;
+// pub mod circumspect_action;
+// pub mod inventory_action;
+// pub mod wield_action;
+// pub mod use_action;
+// 
 use crate::{
     world::{World, handle::WorldObjectHandle}, worldobject::{
-        TypedWorldObject, components::controllers::commands::Command, fns::update::Action, human::Human
+        WorldObject, components::controllers::commands::Command, fns::update::Action, human::Human
     }
 };
 

@@ -1,184 +1,51 @@
-pub mod human;
-pub mod rat;
-pub mod none;
 pub mod components;
+pub mod linguistics;
 pub mod fns;
+pub mod human;
+
+use std::error::Error as StdError;
 
 use async_trait::async_trait;
 
 use crate::{
-    world::{
-        World,
-        handle::WorldObjectHandle
-    },
-    worldobject::components::{
-        controllers::Controller,
-        inventory::{
-            Inventory,
-            item::InventoryItem
-        }
-    },
-    quantities::{
-        Quantity,
-        mass::Mass,
-        force::Force
-    }
+    world::{World, handle::WorldObjectHandle},
+    worldobject::fns::update::Action
 };
 
-use fns::update::Action;
+use components::{
+    person::Person,
+    physics::PhysicsObject,
+    container::{
+        containable::Containable,
+        Container
+    },
+    controllable::Controllable,
+    wielder::{Wielder, wieldable::Wieldable}
+};
 
-type Error = Box<dyn std::error::Error>;
-
-// TypedWorldObject is a trait similar to WorldObject,
-// but with type parameters where WorldObject uses dyn
-// trait objects.  Implementing this trait automatically
-// implements the WorldObject trait, but may allow certain
-// users of the type to rely on more specific type constraints.
-#[async_trait]
-pub trait TypedWorldObject: Send {
-    type Dummy: WorldObject + Sized + 'static;
-    type CollectInventoryItem: InventoryItem + Sized + 'static;
-
-    // linguistic accessors
-    fn name(&self) -> String;
-    fn examine(&self) -> String;
-    fn definite_description(&self) -> String;
-    fn indefinite_description(&self) -> String;
-    fn pronoun(&self) -> String;
-
-    // creates a new object with the same properties as this one,
-    // minus any fields that are not cloneable (e.g. controllers,
-    // loggers)
-    fn dummy(&self) -> Self::Dummy;
-
-    // inventory accessors
-    fn inventory(&self) -> Result<&Inventory, Error>;
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error>;
-
-    // mass accessor
-    fn mass(&self) -> Quantity<Mass>;
-
-    // controller accessors
-    fn controller(&self) -> Result<&dyn Controller, Error>;
-    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error>;
-    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error>;
-    fn set_controller<C: Controller + 'static>(&mut self, controller: C) -> Result<(), (C, Error)>;
-
-    // game mechanics; all async to allow interaction with the controller.
-    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
-    async fn send_message(&mut self, message: String) -> Result<(), Error>;
-    async fn interact(&mut self) -> Result<String, Error>;
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error>;
-    async fn collect(self: Box<Self>) -> Result<Self::CollectInventoryItem, (Error, Box<Self>)>;
-}
+use linguistics::WorldObjectLinguistics;
 
 #[async_trait]
-impl<T: TypedWorldObject + Send + Sync + 'static> WorldObject for T {
-    fn name(&self) -> String {
-        <T as TypedWorldObject>::name(self)
-    }
+pub trait WorldObject {
+    // core worldobject methods
 
-    fn examine(&self) -> String {
-        <T as TypedWorldObject>::examine(self)
-    }
+    // Update returns an action to be performed by the world on this object's behalf.
+    // The action is not executed directly by this object because this would require:
+    // - directly borrowing self immutably, and
+    // - borrowing the world mutably, which implies a mutable borrow of self
+    // This would be a problematic double-borrow.
+    async fn update(&self, my_handle: &WorldObjectHandle, world: &World) -> Result<Action, Box<dyn StdError>>;
+    // Sends a message to the object.
+    async fn send_message(&mut self, message: String) -> Result<(), Box<dyn StdError>>;
+    // Returns linguistic information about this object.
+    fn linguistics(&self) -> WorldObjectLinguistics;
 
-    fn definite_description(&self) -> String {
-        <T as TypedWorldObject>::definite_description(&self)
-    }
-
-    fn indefinite_description(&self) -> String {
-        <T as TypedWorldObject>::indefinite_description(&self)
-    }
-
-    fn pronoun(&self) -> String {
-        <T as TypedWorldObject>::pronoun(&self)
-    }
-
-    fn dummy(&self) -> Box<dyn WorldObject> {
-        Box::new(<T as TypedWorldObject>::dummy(self))
-    }
-
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error> {
-        <T as TypedWorldObject>::update(self, my_handle, world).await
-    }
-
-    async fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)> {
-        <T as TypedWorldObject>::collect(self).await
-            .map(|item| Box::new(item) as Box<dyn InventoryItem>)
-            .map_err(|(err, obj)| (err, obj as Box<dyn WorldObject>))
-    }
-
-    fn inventory(&self) -> Result<&Inventory, Error> {
-        <T as TypedWorldObject>::inventory(&self)
-    }
-
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error> {
-        <T as TypedWorldObject>::inventory_mut(self)
-    }
-
-    fn mass(&self) -> Quantity<Mass> {
-        <T as TypedWorldObject>::mass(self)
-    }
-
-    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error> {
-        <T as TypedWorldObject>::apply_force(self, force).await
-    }
-
-    async fn send_message(&mut self, message: String) -> Result<(), Error> {
-        <T as TypedWorldObject>::send_message(self, message).await
-    }
-
-    async fn interact(&mut self) -> Result<String, Error> {
-        <T as TypedWorldObject>::interact(self).await
-    }
-
-    fn controller(&self) -> Result<&dyn Controller, Error> {
-        <T as TypedWorldObject>::controller(self)
-    }
-
-    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error> {
-        <T as TypedWorldObject>::controller_mut(self)
-    }
-
-    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error> {
-        <T as TypedWorldObject>::take_controller(self)
-    }
-
-    fn set_controller(&mut self, controller: Box<dyn Controller>) -> Result<(), (Box<dyn Controller>, Error)> {
-        <T as TypedWorldObject>::set_controller(self, controller)
-    }
-}
-
-#[async_trait]
-pub trait WorldObject: Send + Sync {
-    // linguistic accessors
-    fn name(&self) -> String;
-    fn examine(&self) -> String;
-    fn definite_description(&self) -> String;
-    fn indefinite_description(&self) -> String;
-    fn pronoun(&self) -> String;
-
-    // physics
-    fn mass(&self) -> Quantity<Mass>;
-
-    // inventory accessors
-    fn inventory(&self) -> Result<&Inventory, Error>;
-    fn inventory_mut(&mut self) -> Result<&mut Inventory, Error>;
-
-    // creates a new object with the same properties as this one,
-    // minus any fields that are not cloneable (typically controllers)
-    fn dummy(&self) -> Box<dyn WorldObject>;
-
-    // game mechanics; all async to allow interaction with the controller.
-    async fn update(&mut self, my_handle: WorldObjectHandle, world: &World) -> Result<Action, Error>;
-    async fn collect(self: Box<Self>) -> Result<Box<dyn InventoryItem>, (Error, Box<dyn WorldObject>)>;
-    async fn apply_force(&mut self, force: &Quantity<Force>) -> Result<String, Error>;
-    async fn send_message(&mut self, message: String) -> Result<(), Error>;
-    async fn interact(&mut self) -> Result<String, Error>;
-
-    // controller accessors
-    fn controller(&self) -> Result<&dyn Controller, Error>;
-    fn controller_mut(&mut self) -> Result<&mut dyn Controller, Error>;
-    fn take_controller(&mut self) -> Result<Box<dyn Controller>, Error>;
-    fn set_controller(&mut self, controller: Box<dyn Controller>) -> Result<(), (Box<dyn Controller>, Error)>;
+    // extention traits
+    fn as_controllable(self: Box<Self>) -> Result<Box<Controllable>, Box<dyn StdError>>;
+    fn as_containable(self: Box<Self>) -> Result<Containable, Box<dyn StdError>>;
+    fn as_container(self: Box<Self>) -> Result<Container, Box<dyn StdError>>;
+    fn as_person(self: Box<Self>) -> Result<Box<Person>, Box<dyn StdError>>;
+    fn as_physics_object(self: Box<Self>) -> Result<PhysicsObject, Box<dyn StdError>>;
+    fn as_wielder(self: Box<Self>) -> Result<Box<Wielder>, Box<dyn StdError>>;
+    fn as_wieldable(self: Box<Self>) -> Result<Box<Wieldable>, Box<dyn StdError>>;
 }

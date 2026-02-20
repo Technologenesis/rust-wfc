@@ -3,7 +3,7 @@ use crate::{
     worldobject::{
         fns::update::Action,
         human::Human,
-        components::controllers::commands::attack_command::AttackCommand
+        components::controllable::controller::commands::attack_command::AttackCommand
     },
     world::{World, WorldObjectGetError},
     quantities::direction::{DirectionHorizontal}

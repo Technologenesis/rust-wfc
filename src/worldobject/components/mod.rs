@@ -1,4 +1,6 @@
-pub mod inventory;
-pub mod controllers;
-pub mod gender;
-pub mod body;
+pub mod person;
+pub mod physics;
+pub mod messages;
+pub mod container;
+pub mod wielder;
+pub mod controllable;

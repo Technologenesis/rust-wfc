@@ -18,9 +18,8 @@ use crate::{
         LoggerImpl,
     },
     worldobject::{
-        components::controllers::net::controller::NetworkController,
+        components::controllable::controller::net::controller::NetworkController,
         WorldObject,
-        TypedWorldObject,
         human::{
             Human
         }
@@ -154,11 +153,9 @@ impl Lobby {
             .map_err(|error| -> Box<dyn std::error::Error> { Box::new(LobbyError::HumanDeserializeError(error)) })
             .and_then(
                 |mut character| {
-                    <Human as TypedWorldObject>::set_controller(
-                        &mut character,
-                        NetworkController::new(stream, (self.new_controller_logger)())
-                    )
-                        .map_err(|(_, error)| error)?;
+                    character.set_controller(
+                        Box::new(NetworkController::new(stream, (self.new_controller_logger)()))
+                    ).map_err(|(_, error)| error)?;
 
                     self.add_character(character)
                 }

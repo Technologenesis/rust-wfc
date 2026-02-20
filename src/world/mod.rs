@@ -7,7 +7,10 @@ use std::error;
 
 use crate::{
     lang::{GrammaticalPerson, TransitiveVerb, verbs::ToDo, TransitiveVerbPhrase, VerbPhrase},
-    worldobject::{WorldObject, fns::Error as WorldObjectError, components::inventory::item::InventoryItem},
+    worldobject::{
+        components::container::containable::Containable,
+        WorldObject,
+        fns::Error as WorldObjectError},
     quantities::{Quantity, distance::Distance, direction::DirectionHorizontalOrVertical},
     logging::{Logger, LoggerImpl, DynLogger, noop::NoopLogger}
 };
@@ -137,7 +140,7 @@ impl World {
         Ok(obj_box)
     }
 
-    pub fn give_item_to<Item: InventoryItem + 'static>(&mut self, handle: &WorldObjectHandle, item: Item) -> Result<(), WorldGiveItemError> {
+    pub fn give_item_to(&mut self, handle: &WorldObjectHandle, item: Containable) -> Result<(), WorldGiveItemError> {
         let (_, object) = self.objects.get_mut(handle)
             .ok_or(WorldGiveItemError::NoSuchObject(handle.clone()))?;
 

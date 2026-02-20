@@ -17,9 +17,9 @@ use {
     std::{collections::HashMap, io, fs::File},
     logging::{basic::BasicLogger, channel::LoggingChannel},
     world::{World, coord::WorldCoord},
-    worldobject::{WorldObject, components::inventory::item::{
+    worldobject::{components::container::containable::{
         sword::Sword, wand::Wand}, rat::Rat,
-        components::controllers::net::client::NetworkHumanControllerClient
+        components::controllable::controller::net::client::NetworkHumanControllerClient
     },
     quantities::{distance::meters, mass::kilograms, speed::meters_per_second}
 };

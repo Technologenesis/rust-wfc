@@ -2,21 +2,18 @@ use std::io;
 
 use crate::{
     worldobject::{
+        human::Human,
         components::{
-            gender::Gender,
-            body::{
+            person::gender::Gender,
+            physics::body::{
                 Body,
                 head::{Head, Mouth},
-                torso::{Torso, arm::arm, arm::hand::hand},
+                torso::{Torso, arm::Arm, arm::hand::Hand},
                 legs::Legs
             },
-            inventory::{
-                Inventory,
-                item::InventoryItem
-            },
-            controllers::terminal::TerminalHumanController,
+            controllable::controller::terminal::TerminalHumanController,
+            wielder::wieldable::Wieldable,
         },
-        human::Human
     },
     quantities::{
         speed::meters_per_second,
@@ -81,23 +78,23 @@ pub fn create_character() -> Human {
             },
             torso: Torso{
                 base_mass: kilograms(20.0),
-                left_arm: arm(
+                left_arm: Arm::new(
                     kilograms(10.0),
                     meters(1.0),
                     newtons(1000.0),
-                    Some(hand(
+                    Some(Hand::new(
                         kilograms(1.0),
-                        None::<Box<dyn InventoryItem>>
+                        None::<Wieldable>
                     ))
                 ),
-                right_arm: arm(
+                right_arm: Arm::new(
                     kilograms(10.0),
                     meters(1.0),
                     newtons(1000.0),
-                    Some(hand(
+                    Some(Hand{
                         kilograms(1.0),
-                        None::<Box<dyn InventoryItem>>
-                    ))
+                        None::<Wieldable>
+                    })
                 ),
             },
             legs: Legs{
@@ -106,7 +103,6 @@ pub fn create_character() -> Human {
             },
         },
         DirectionHorizontal::Right,
-        Inventory::new(),
-        Some(TerminalHumanController{})
+        Some(Box::new(TerminalHumanController{}))
     )
 }
