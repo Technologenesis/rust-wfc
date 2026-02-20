@@ -66,12 +66,12 @@ impl WorldObject for Hand {
     }
 
     // Sends a message to the object.
-    fn send_message(&mut self, message: String) -> Result<(), Box<dyn StdError>> {
+    async fn send_message(&mut self, _message: String) -> Result<(), Box<dyn StdError>> {
         Ok(())
     }
 
     // extention traits
-    fn as_controllable(self: Box<Self>) -> Result<Box<Controllable>, Box<dyn StdError>> {
+    fn as_controllable(self: Box<Self>) -> Result<Controllable, Box<dyn StdError>> {
         Err(Box::from(format!("{} cannot be ensouled", self.linguistics().name)))
     }
     fn as_containable(self: Box<Self>) -> Result<Containable, Box<dyn StdError>> {
@@ -80,16 +80,16 @@ impl WorldObject for Hand {
     fn as_container(self: Box<Self>) -> Result<Container, Box<dyn StdError>> {
         Err(Box::from(format!("{} cannot contain items", self.linguistics().name)))
     }
-    fn as_person(self: Box<Self>) -> Result<Box<Person>, Box<dyn StdError>> {
+    fn as_person(self: Box<Self>) -> Result<Person, Box<dyn StdError>> {
         Err(Box::from(format!("{} is not a person", self.linguistics().name)))
     }
     fn as_physics_object(self: Box<Self>) -> Result<PhysicsObject, Box<dyn StdError>> {
         Ok(self)
     }
-    fn as_wielder(self: Box<Self>) -> Result<Box<Wielder>, Box<dyn StdError>> {
+    fn as_wielder(self: Box<Self>) -> Result<Wielder, Box<dyn StdError>> {
         Ok(self)
     }
-    fn as_wieldable(self: Box<Self>) -> Result<Box<Wieldable>, Box<dyn StdError>> {
+    fn as_wieldable(self: Box<Self>) -> Result<Wieldable, Box<dyn StdError>> {
         Ok(self)
     }
 }

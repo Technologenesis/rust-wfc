@@ -30,8 +30,8 @@ impl fmt::Display for WieldCommandParseError {
 impl WieldCommand {
     pub fn parse<'a, I: Iterator<Item = &'a str>>(words: &mut std::iter::Peekable<I>) -> Result<Self, WieldCommandParseError> {
         let item_handle = words.next().ok_or(WieldCommandParseError::NoItemHandleProvided)
-            .and_then(|handle| ContainerHandle::try_from(handle)
-                .map_err(|err| WieldCommandParseError::InvalidItemHandle(err))
+            .and_then(|handle| handle.parse::<ContainerHandle>()
+                .map_err(|err| WieldCommandParseError::InvalidItemHandle(err.to_string()))
             )?;
         Ok(WieldCommand { item_handle })
     }

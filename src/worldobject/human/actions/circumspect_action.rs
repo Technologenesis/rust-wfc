@@ -9,15 +9,8 @@ pub fn action() -> Action {
         exec: Box::new(
             move |world: &mut World| {
                 Box::pin(async move {
-                    let handles_and_descriptions = world.objects.iter()
-                        .map(|(handle, object)| (handle, format!("{}: {}", handle, object.1.indefinite_description())))
-                        .collect::<Vec<_>>();
-
-                    Ok(Some(if handles_and_descriptions.is_empty() {
-                        format!("you see nothing around you")
-                    } else {
-                        format!("you see: \n - {}", handles_and_descriptions.iter().map(|(_, description)| description.clone()).collect::<Vec<_>>().join("\n - "))
-                    }))
+                    let result: String = todo!("circumspect via world object listing");
+                    Ok(Some(result))
                 })
             }
         ),

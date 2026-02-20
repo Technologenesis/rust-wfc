@@ -4,8 +4,8 @@ use crate::{
     lang::{VerbPhrase, IntransitiveVerb, verbs::ToMove},
     world::{World, handle::WorldObjectHandle},
     worldobject::{
-        Error as WorldObjectError,
-        components::controllers::commands::move_command::MoveCommand,
+        fns::Error as WorldObjectError,
+        components::controllable::controller::commands::move_command::MoveCommand,
         human::Human,
         fns::update::Action
     },

@@ -140,16 +140,8 @@ impl World {
         Ok(obj_box)
     }
 
-    pub fn give_item_to(&mut self, handle: &WorldObjectHandle, item: Containable) -> Result<(), WorldGiveItemError> {
-        let (_, object) = self.objects.get_mut(handle)
-            .ok_or(WorldGiveItemError::NoSuchObject(handle.clone()))?;
-
-        let inventory = object.inventory_mut()
-            .map_err(|err| WorldGiveItemError::CoultNotGetInventory(String::from(handle), err))?;
-
-        inventory.give(item);
-
-        Ok(())
+    pub fn give_item_to(&mut self, _handle: &WorldObjectHandle, _item: Containable) -> Result<(), WorldGiveItemError> {
+        todo!("give_item_to via ContainerTrait")
     }
 
     pub async fn send_message_to(&mut self, handle: &WorldObjectHandle, message: String) -> Result<(), WorldObjectSendMessageError> {
@@ -224,7 +216,7 @@ impl World {
             // try getting the object; if we succeed, call the object's update method.
             // This borrows the object from the world, necessitating the dummy world
             match self.get_object_mut(&handle) {
-                Ok(object) => object.update(handle.clone(), &world_dummy).await,
+                Ok(object) => object.update(handle, &world_dummy).await,
                 Err(err) => {
                     let b: Box<dyn std::error::Error> = Box::new(err);
                     Err(b)
@@ -280,7 +272,7 @@ impl World {
 
         let handles = self.objects.iter().map(
             |(handle, obj)|
-            (handle.clone(), obj.1.definite_description())
+            (handle.clone(), obj.1.linguistics().definite_description.clone())
         ).collect::<Vec<_>>();
 
         for (handle, object_description) in handles {
@@ -295,9 +287,10 @@ impl World {
     }
 
     pub fn dummy(&self) -> Self {
+        // TODO: once WorldObject supports Clone, copy objects into the dummy world
         Self {
             logger: NoopLogger::new().to_dyn(),
-            objects: self.objects.iter().map(|(handle, (coord, object))| (handle.clone(), (coord.clone(), object.dummy()))).collect(),
+            objects: HashMap::new(),
         }
     }
 }

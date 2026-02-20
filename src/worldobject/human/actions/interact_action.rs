@@ -3,8 +3,8 @@ use futures::future::BoxFuture;
 use crate::{
     world::{World, WorldObjectGetError},
     worldobject::{
-        Error as WorldObjectError,
-        components::controllers::commands::interact_action::InteractAction,
+        fns::Error as WorldObjectError,
+        components::controllable::controller::commands::interact_action::InteractAction,
         fns::update::Action
     },
     lang::{VerbPhrase, PrepositionalVerbPhrase, PrepositionalPhrase, IntransitiveVerb, verbs::ToInteract}
@@ -32,10 +32,7 @@ pub fn from_command(cmd: InteractAction, world: &World) -> Result<Action, Intera
             Box::new(
                 move |world: &mut World| -> BoxFuture<Result<Option<String>, WorldObjectError>> {
                     Box::pin(async move {
-                        let object = world.get_object_mut(&target_handle)
-                            .map_err(|err| Box::new(err))?;
-                    
-                        let msg = object.interact().await?;
+                        let msg: String = todo!("interact via component trait");
 
                         Ok(Some(msg))
                     })
@@ -52,7 +49,7 @@ pub fn from_command(cmd: InteractAction, world: &World) -> Result<Action, Intera
                 prepositional_phrase: PrepositionalPhrase {
                     preposition: String::from("with"),
                     object: world.get_object(&cmd.target_handle)
-                        .map(|object| object.definite_description())
+                        .map(|object| object.linguistics().definite_description.clone())
                         .map_err(|err| InteractCommandToActionError::FailedToGetTargetObject(err))?
                 }
             }

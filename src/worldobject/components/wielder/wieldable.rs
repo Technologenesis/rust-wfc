@@ -1,3 +1,3 @@
 pub type Wieldable = Box<dyn WieldableTrait>;
 
-pub trait WieldableTrait {}
+pub trait WieldableTrait: Send + Sync {}

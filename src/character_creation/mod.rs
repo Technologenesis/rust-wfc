@@ -91,10 +91,10 @@ pub fn create_character() -> Human {
                     kilograms(10.0),
                     meters(1.0),
                     newtons(1000.0),
-                    Some(Hand{
+                    Some(Hand::new(
                         kilograms(1.0),
                         None::<Wieldable>
-                    })
+                    ))
                 ),
             },
             legs: Legs{

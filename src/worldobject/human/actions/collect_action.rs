@@ -3,7 +3,7 @@ use crate::{
     world::{handle::WorldObjectHandle, World, WorldObjectGetError},
     worldobject::{
         fns::update::Action,
-        components::controllers::commands::collect_command::CollectCommand
+        components::controllable::controller::commands::collect_command::CollectCommand
     }
 };
 
@@ -29,18 +29,7 @@ pub fn from_command(cmd: CollectCommand, world: &World, my_handle: WorldObjectHa
             Box::new(
                 move |world: &mut World| {
                     Box::pin(async move {
-                        let location = world.locate_object(&target_handle)?;
-                        let object = world.take_object(&target_handle)?;
-                    
-                        let inventory_item = object.collect().await
-                            .or_else(|(err, og_object)| {
-                                world.add_object(target_handle, og_object, location);
-                                Err(err)
-                        })?;
-                    
-                        world.give_item_to(&my_handle, inventory_item)
-                            .map_err(|err| Box::new(err))?;
-                    
+                        let _: () = todo!("collect via component trait");
                         Ok(None)
                     })
                 }
@@ -50,7 +39,7 @@ pub fn from_command(cmd: CollectCommand, world: &World, my_handle: WorldObjectHa
             TransitiveVerbPhrase {
                 verb: TransitiveVerb::new(ToCollect),
                 direct_object: world.get_object(&cmd.target_handle)
-                    .map(|object| object.definite_description())
+                    .map(|object| object.linguistics().definite_description.clone())
                     .map_err(|err| CollectCommandToActionError::FailedToGetTargetObject(err))?
             }
         )

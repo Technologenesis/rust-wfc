@@ -41,7 +41,7 @@ impl std::error::Error for AttackError {}
 
 pub fn from_command(cmd: AttackCommand, world: &World, me: Human) -> Result<Action, AttackCommandToActionError> {
     let target_description = world.get_object(&cmd.target_handle)
-        .map(|object| object.definite_description())
+        .map(|object| object.linguistics().definite_description.clone())
         .map_err(|err| AttackCommandToActionError::FailedToGetTargetObject(err))?;
 
     Ok(Action{
@@ -55,11 +55,7 @@ pub fn from_command(cmd: AttackCommand, world: &World, me: Human) -> Result<Acti
                 
                     let punch_force = arm.punch_force.clone();
                     
-                    let object = world.get_object_mut(&cmd.target_handle)
-                        .map_err(|err| Box::new(err))?;
-                
-                    let msg = object.apply_force(&punch_force).await
-                        .unwrap_or_else(|err| format!("failed to apply force: {}", err));
+                    let msg: String = todo!("apply_force via PhysicsObjectTrait");
                 
                     Ok(Some(msg))
                 })

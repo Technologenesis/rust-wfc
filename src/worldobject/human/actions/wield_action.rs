@@ -1,18 +1,17 @@
-use futures::future::BoxFuture;
-
 use crate::{
-    lang::{TransitiveVerb, TransitiveVerbPhrase, VerbPhrase, verbs::ToWield}, world::World, worldobject::{
-        Error as WorldObjectError, components::{
-            controllers::commands::wield_command::WieldCommand,
-            inventory::item::InventoryItemHandle
-        }, fns::update::Action, human::Human
+    worldobject::{
+        components::{
+            controllable::controller::commands::wield_command::WieldCommand,
+            container::ContainerHandle,
+        },
+        fns::update::Action,
+        human::Human,
     },
-    quantities::direction::DirectionHorizontal,
 };
 
 #[derive(Debug)]
 pub enum WieldCommandToActionError {
-    NoSuchItem(InventoryItemHandle),
+    NoSuchItem(ContainerHandle),
     FailedToWieldItem(Box<dyn std::error::Error>),
 }
 
@@ -27,5 +26,6 @@ impl std::fmt::Display for WieldCommandToActionError {
 
 impl std::error::Error for WieldCommandToActionError {}
 
-pub fn from_command(me: &mut Human, cmd: WieldCommand) -> Result<Action, WieldCommandToActionError> {
+pub fn from_command(_me: &mut Human, _cmd: WieldCommand) -> Result<Action, WieldCommandToActionError> {
+    todo!("wield item via ContainerHandle")
 }

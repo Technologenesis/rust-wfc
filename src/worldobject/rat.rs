@@ -3,12 +3,11 @@ use std::error::Error as StdError;
 use async_trait::async_trait;
 
 use crate::{
-    materials::Material,
     quantities::{
         Quantity,
-        mass::{Mass, grams},
+        mass::Mass,
         force::Force,
-        distance::{Distance, meters},
+        speed::Speed,
     },
     world::{World, handle::WorldObjectHandle},
     worldobject::{
@@ -25,29 +24,28 @@ use crate::{
     },
 };
 
-pub struct Sword {
-    mass: Quantity<Mass>,
-    reach: Quantity<Distance>,
-    material: Material,
+pub struct Rat {
+    pub mass: Quantity<Mass>,
+    pub speed: Quantity<Speed>,
 }
 
-impl Sword {
-    pub fn new(reach: Quantity<Distance>, material: Material) -> Sword {
-        Sword { mass: grams(1500.0), reach, material }
+impl Rat {
+    pub fn new(mass: Quantity<Mass>, speed: Quantity<Speed>) -> Rat {
+        Rat { mass, speed }
     }
 }
 
 #[async_trait]
-impl WorldObject for Sword {
+impl WorldObject for Rat {
     async fn update(&self, _my_handle: &WorldObjectHandle, _world: &World) -> Result<Action, Box<dyn StdError>> {
         Ok(Action::no_op())
     }
 
     fn linguistics(&self) -> WorldObjectLinguistics {
         WorldObjectLinguistics {
-            name: String::from("sword"),
-            definite_description: String::from("the sword"),
-            indefinite_description: String::from("a sword"),
+            name: String::from("rat"),
+            definite_description: String::from("the rat"),
+            indefinite_description: String::from("a rat"),
             pronoun: String::from("it"),
         }
     }
@@ -57,7 +55,7 @@ impl WorldObject for Sword {
     }
 
     fn as_controllable(self: Box<Self>) -> Result<Controllable, Box<dyn StdError>> {
-        Err(Box::from("sword is not controllable"))
+        Err(Box::from("rat is not controllable"))
     }
 
     fn as_containable(self: Box<Self>) -> Result<Containable, Box<dyn StdError>> {
@@ -65,11 +63,11 @@ impl WorldObject for Sword {
     }
 
     fn as_container(self: Box<Self>) -> Result<Container, Box<dyn StdError>> {
-        Err(Box::from("sword is not a container"))
+        Err(Box::from("rat is not a container"))
     }
 
     fn as_person(self: Box<Self>) -> Result<Person, Box<dyn StdError>> {
-        Err(Box::from("sword is not a person"))
+        Err(Box::from("rat is not a person"))
     }
 
     fn as_physics_object(self: Box<Self>) -> Result<PhysicsObject, Box<dyn StdError>> {
@@ -77,7 +75,7 @@ impl WorldObject for Sword {
     }
 
     fn as_wielder(self: Box<Self>) -> Result<Wielder, Box<dyn StdError>> {
-        Err(Box::from("sword is not a wielder"))
+        Err(Box::from("rat is not a wielder"))
     }
 
     fn as_wieldable(self: Box<Self>) -> Result<Wieldable, Box<dyn StdError>> {
@@ -85,16 +83,16 @@ impl WorldObject for Sword {
     }
 }
 
-impl crate::worldobject::components::physics::PhysicsObjectTrait for Sword {
+impl crate::worldobject::components::physics::PhysicsObjectTrait for Rat {
     fn mass(&self) -> Quantity<Mass> {
         self.mass.clone()
     }
 
     fn apply_force(&self, _force: &Quantity<Force>) -> Result<String, Box<dyn StdError>> {
-        Ok(String::from("the sword bends with the force, but recovers its shape"))
+        Ok(String::from("the rat squeaks"))
     }
 }
 
-impl crate::worldobject::components::container::containable::ContainableTrait for Sword {}
+impl crate::worldobject::components::container::containable::ContainableTrait for Rat {}
 
-impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Sword {}
+impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Rat {}

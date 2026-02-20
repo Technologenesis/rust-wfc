@@ -2,6 +2,9 @@ pub mod components;
 pub mod linguistics;
 pub mod fns;
 pub mod human;
+pub mod sword;
+pub mod wand;
+pub mod rat;
 
 use std::error::Error as StdError;
 
@@ -26,7 +29,7 @@ use components::{
 use linguistics::WorldObjectLinguistics;
 
 #[async_trait]
-pub trait WorldObject {
+pub trait WorldObject: Send + Sync {
     // core worldobject methods
 
     // Update returns an action to be performed by the world on this object's behalf.
@@ -40,12 +43,17 @@ pub trait WorldObject {
     // Returns linguistic information about this object.
     fn linguistics(&self) -> WorldObjectLinguistics;
 
+    // Convenience method: returns the object's name.
+    fn name(&self) -> String {
+        self.linguistics().name.clone()
+    }
+
     // extention traits
-    fn as_controllable(self: Box<Self>) -> Result<Box<Controllable>, Box<dyn StdError>>;
+    fn as_controllable(self: Box<Self>) -> Result<Controllable, Box<dyn StdError>>;
     fn as_containable(self: Box<Self>) -> Result<Containable, Box<dyn StdError>>;
     fn as_container(self: Box<Self>) -> Result<Container, Box<dyn StdError>>;
-    fn as_person(self: Box<Self>) -> Result<Box<Person>, Box<dyn StdError>>;
+    fn as_person(self: Box<Self>) -> Result<Person, Box<dyn StdError>>;
     fn as_physics_object(self: Box<Self>) -> Result<PhysicsObject, Box<dyn StdError>>;
-    fn as_wielder(self: Box<Self>) -> Result<Box<Wielder>, Box<dyn StdError>>;
-    fn as_wieldable(self: Box<Self>) -> Result<Box<Wieldable>, Box<dyn StdError>>;
+    fn as_wielder(self: Box<Self>) -> Result<Wielder, Box<dyn StdError>>;
+    fn as_wieldable(self: Box<Self>) -> Result<Wieldable, Box<dyn StdError>>;
 }
