@@ -95,4 +95,8 @@ impl crate::worldobject::components::physics::PhysicsObjectTrait for Rat {
 
 impl crate::worldobject::components::container::containable::ContainableTrait for Rat {}
 
-impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Rat {}
+impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Rat {
+    fn wieldable_name(&self) -> String {
+        String::from("rat")
+    }
+}

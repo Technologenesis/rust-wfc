@@ -85,5 +85,30 @@ impl crate::worldobject::components::physics::PhysicsObjectTrait for Wand {
 
 impl crate::worldobject::components::container::containable::ContainableTrait for Wand {}
 
-// Transmogrify logic (controller swap) is a stub pending controller mechanism finalization
-impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Wand {}
+impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Wand {
+    fn wieldable_name(&self) -> String {
+        String::from("wand")
+    }
+
+    fn as_usable(&mut self) -> Option<&mut dyn crate::worldobject::components::wielder::usable::UsableTrait> {
+        Some(self)
+    }
+}
+
+impl crate::worldobject::components::wielder::usable::UsableTrait for Wand {
+    fn use_item(
+        &mut self,
+        _target: Option<&crate::world::handle::WorldObjectHandle>,
+    ) -> Result<crate::worldobject::components::wielder::usable::UseEffect, Box<dyn StdError>> {
+        use crate::lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToCast};
+
+        // Transmogrify logic (controller swap) is a stub pending controller mechanism finalization
+        Ok(crate::worldobject::components::wielder::usable::UseEffect {
+            verb_phrase: VerbPhrase::Transitive(TransitiveVerbPhrase {
+                verb: TransitiveVerb::new(ToCast),
+                direct_object: String::from("a spell"),
+            }),
+            message: String::from("you wave the wand and a shower of sparks erupts from its tip"),
+        })
+    }
+}

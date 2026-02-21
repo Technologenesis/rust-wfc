@@ -1,4 +1,5 @@
 pub mod wieldable;
+pub mod usable;
 
 use std::error::Error as StdError;
 

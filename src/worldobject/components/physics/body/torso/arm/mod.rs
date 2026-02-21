@@ -185,7 +185,11 @@ impl WielderTrait for Arm {
     }
 }
 
-impl WieldableTrait for Arm {}
+impl WieldableTrait for Arm {
+    fn wieldable_name(&self) -> String {
+        String::from("arm")
+    }
+}
 
 #[derive(Debug)]
 pub struct ArmUseError;

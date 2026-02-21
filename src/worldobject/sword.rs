@@ -97,4 +97,29 @@ impl crate::worldobject::components::physics::PhysicsObjectTrait for Sword {
 
 impl crate::worldobject::components::container::containable::ContainableTrait for Sword {}
 
-impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Sword {}
+impl crate::worldobject::components::wielder::wieldable::WieldableTrait for Sword {
+    fn wieldable_name(&self) -> String {
+        String::from("sword")
+    }
+
+    fn as_usable(&mut self) -> Option<&mut dyn crate::worldobject::components::wielder::usable::UsableTrait> {
+        Some(self)
+    }
+}
+
+impl crate::worldobject::components::wielder::usable::UsableTrait for Sword {
+    fn use_item(
+        &mut self,
+        _target: Option<&crate::world::handle::WorldObjectHandle>,
+    ) -> Result<crate::worldobject::components::wielder::usable::UseEffect, Box<dyn StdError>> {
+        use crate::lang::{VerbPhrase, TransitiveVerbPhrase, TransitiveVerb, verbs::ToUse};
+
+        Ok(crate::worldobject::components::wielder::usable::UseEffect {
+            verb_phrase: VerbPhrase::Transitive(TransitiveVerbPhrase {
+                verb: TransitiveVerb::new(ToUse),
+                direct_object: String::from("the sword"),
+            }),
+            message: String::from("you swing the sword through the air with a sharp whistle"),
+        })
+    }
+}

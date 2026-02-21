@@ -12,4 +12,8 @@ impl std::fmt::Display for HandUseError {
     }
 }
 
-impl WieldableTrait for Hand {}
+impl WieldableTrait for Hand {
+    fn wieldable_name(&self) -> String {
+        String::from("hand")
+    }
+}
