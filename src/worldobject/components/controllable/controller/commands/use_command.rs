@@ -16,14 +16,12 @@ pub struct UseCommand {
 #[derive(Debug)]
 pub enum UseCommandParseError {
     NoItemNameProvided,
-    InvalidItemName(String),
     InvalidTargetHandle(Box<dyn std::error::Error>),
 }
 
 impl fmt::Display for UseCommandParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UseCommandParseError::InvalidItemName(name) => write!(f, "you are not wielding an item named \"{}\"", name),
             UseCommandParseError::NoItemNameProvided => write!(f, "no item name provided"),
             UseCommandParseError::InvalidTargetHandle(err) => write!(f, "invalid target handle: {}", err)
         }

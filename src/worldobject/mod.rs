@@ -2,6 +2,7 @@ pub mod components;
 pub mod linguistics;
 pub mod fns;
 pub mod human;
+pub mod controlled;
 pub mod sword;
 pub mod wand;
 pub mod rat;

@@ -11,21 +11,6 @@ pub struct AttackCommand {
 }
 
 #[derive(Debug)]
-pub enum AttackError {
-    NoArmProvided,
-}
-
-impl std::fmt::Display for AttackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NoArmProvided => write!(f, "no arm provided"),
-        }
-    }
-}
-
-impl std::error::Error for AttackError {}
-
-#[derive(Debug)]
 pub enum AttackActionParseError {
     NoObjectHandleProvided,
     InvalidObjectHandle(String)
